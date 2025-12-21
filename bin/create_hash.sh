@@ -9,7 +9,8 @@ sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
 # We use 7z test command with -scrcSHA256 to get a stable hash of the contents.
 CONTENT_HASH=$(7z t -scrcSHA256 "$ARCHIVE" | grep "SHA256 for data:" | cut -d':' -f2 | tr -d ' ' | cut -d'-' -f1)
 if [ ! -z "$CONTENT_HASH" ]; then
-    echo "content:$CONTENT_HASH" >> "$ARCHIVE.sha256"
+    echo "$CONTENT_HASH" > "$ARCHIVE.content.sha256"
 fi
 
 echo "[SUCCESS] Created $ARCHIVE.sha256"
+if [ -f "$ARCHIVE.content.sha256" ]; then echo "[SUCCESS] Created $ARCHIVE.content.sha256"; fi

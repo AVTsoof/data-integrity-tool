@@ -15,7 +15,8 @@ set "contentHash=%contentHash: =%"
 for /f "tokens=1 delims=-" %%g in ("%contentHash%") do set "contentHash=%%g"
 
 if not "%contentHash%"=="" (
-    echo content:%contentHash%>>"%archive%.sha256"
+    echo %contentHash% > "%archive%.content.sha256"
 )
 
 echo [SUCCESS] Created %archive%.sha256
+if exist "%archive%.content.sha256" echo [SUCCESS] Created %archive%.content.sha256

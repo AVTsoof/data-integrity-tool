@@ -2,14 +2,14 @@
 
 **Ensure your archives are intact, even if they've been re-packaged.**
 
-A robust, cross-platform toolset designed to verify the integrity of archive files (ZIP, 7z, etc.) during transfer and storage. It uses a unique dual-layer system to distinguish between actual data corruption and harmless re-compression.
+A robust, cross-platform toolset designed to verify the integrity of archive files (ZIP, 7z, etc.) during transfer and storage. It uses a unique **Triple-Layer Verification** system to guarantee data safety.
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Create a Hash
-Generate a verification file for your archive.
+### 1. Create Hashes
+Generate verification files for your archive.
 ```bash
 # Windows
 bin\create_hash.bat my_data.zip
@@ -17,26 +17,36 @@ bin\create_hash.bat my_data.zip
 # Linux/macOS
 ./bin/create_hash.sh my_data.zip
 ```
+This creates two files:
+- `my_data.zip.sha256`: The standard file hash.
+- `my_data.zip.content.sha256`: The stable content hash.
 
 ### 2. Verify Integrity
-Check if the file is valid or if the internal data is still intact.
+Check if the file is valid. The tool automatically looks for `.sha256` and `.content.sha256` files in the same folder.
 ```bash
 # Windows
-bin\verify_hash.bat my_data.zip my_data.zip.sha256
+bin\verify_hash.bat my_data.zip
 
 # Linux/macOS
-./bin/verify_hash.sh my_data.zip my_data.zip.sha256
+./bin/verify_hash.sh my_data.zip
+
+# Advanced: Explicitly provide hash files
+bin\verify_hash.bat my_data.zip my_data.zip.sha256
+bin\verify_hash.bat my_data.zip my_data.zip.sha256 my_data.zip.content.sha256
 ```
 
 ---
 
 ## ✨ Key Features
 
-- **✅ Dual-Layer Verification**: Checks both the file container and the uncompressed data.
+- **✅ Triple-Layer Verification**: 
+    1. **Archive Hash**: Validates the file container itself.
+    2. **7z CRC Check**: Uses 7-Zip's internal checksums to detect bit-rot.
+    3. **Content Hash**: Validates the actual data bits (SHA256).
 - **🔄 Resilient**: Detects if an archive was re-zipped but still contains the same data.
 - **🌍 Cross-Platform**: Native support for Windows (Batch) and Linux/macOS (Bash).
 - **📦 Format Agnostic**: Works with ZIP, 7z, TAR, and more.
-- **📄 Standard Compliant**: Uses `.sha256` files that remain compatible with standard tools.
+- **📄 Simple Storage**: Uses clean `.sha256` files for easy management.
 
 ---
 
@@ -54,23 +64,22 @@ Ensure you have these installed and in your system PATH:
 
 ## 🔍 Technical Deep Dive
 
-### How the Dual-Layer System Works
+### The Triple-Layer System
 
-Standard hashing tools only check the file itself. If you re-zip a folder, the hash changes, even if the files inside are identical. This tool solves that by generating two hashes:
+Standard hashing tools only check the file itself. This tool adds two more layers of protection:
 
-1.  **File Hash**: A standard SHA256 of the archive file.
-2.  **Content Hash**: A stable SHA256 of the *uncompressed data* extracted via 7-Zip (`7z t -scrcSHA256`).
+1.  **Layer 1: Archive Hash (SHA256)**
+    - Checks the `.sha256` file. If it matches, the archive is bit-for-bit identical to the original.
+2.  **Layer 2: 7z Internal Integrity (CRC32)**
+    - Runs `7z t`. This uses the archive's internal checksums to ensure no "bit-rot" has occurred during storage.
+3.  **Layer 3: Content Hash (SHA256)**
+    - Checks the `.content.sha256` file. This is a stable hash of the *uncompressed data*. If you re-zip the same files, Layer 1 will fail, but Layer 3 will pass, confirming your data is safe.
 
-**Storage:**
-Both hashes are stored in a single `.sha256` file:
-- **Line 1**: Standard SHA256 hash (compatible with `sha256sum`).
-- **Line 2**: The content hash, prefixed with `content:`.
-
-**The Verification Logic:**
-1.  **Check File Hash**: If it matches, the file is 100% identical. **[PASS]**
-2.  **Check Content Hash**: If the file hash fails (e.g., re-zipped), the tool calculates the hash of the internal data.
-3.  **Result**: If the data matches, the tool confirms the integrity is intact but notes the file container has changed. **[PASS]**
-4.  **Failure**: If both hashes mismatch, the file is corrupt. **[FAIL]**
+### Flexible Verification
+You can verify against either file:
+- Providing the `.sha256` file will trigger all 3 layers (if the content hash file exists).
+- Providing the `.content.sha256` file will skip the archive hash check but still perform the CRC and Content Hash checks.
+- **Advanced**: You can explicitly provide both files: `bin\verify_hash.bat archive.zip archive.sha256 archive.content.sha256`.
 
 ### Running Tests
 
