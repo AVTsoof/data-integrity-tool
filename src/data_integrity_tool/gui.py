@@ -233,7 +233,7 @@ class CreatePage(ttk.Frame):
             else:
                 self.after(0, lambda: self.set_status(self.lbl_content_hash, "Content Hash File: N/A", "Pending.TLabel"))
             
-            self.after(0, lambda: messagebox.showinfo("Success", "Hashes created successfully."))
+
         except Exception as e:
             self.after(0, lambda: messagebox.showerror("Error", str(e)))
             self.after(0, lambda: self.log(f"Error: {e}"))
@@ -444,7 +444,7 @@ class VerifyPage(ttk.Frame):
                 self.after(0, lambda: self.log("Layer 3: SKIPPED"))
                 self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Skipped \u2013", "Skipped.TLabel"))
 
-            self.after(0, lambda: messagebox.showinfo("Done", "Verification complete. Check logs."))
+
 
         except Exception as e:
             self.after(0, lambda: messagebox.showerror("Error", str(e)))
