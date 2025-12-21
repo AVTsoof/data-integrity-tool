@@ -2,6 +2,12 @@
 ARCHIVE=$1
 if [ -z "$ARCHIVE" ]; then echo "Usage: ./create_hash.sh [archive.zip/7z]"; exit 1; fi
 
+# Verify that the input is a valid archive
+if ! 7z l "$ARCHIVE" > /dev/null 2>&1; then
+    echo "[ERROR] '$ARCHIVE' is not a valid archive file."
+    exit 1
+fi
+
 # Standard sha256sum works for any file type
 sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
 

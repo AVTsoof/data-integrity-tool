@@ -2,6 +2,13 @@
 set "archive=%~1"
 if "%~1"=="" (echo Usage: create_hash.bat [archive.zip/7z] & exit /b 1)
 
+:: Verify that the input is a valid archive
+7z l "%archive%" >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] "%archive%" is not a valid archive file.
+    exit /b 1
+)
+
 :: Generate SHA256 of the archive file itself
 powershell -Command "$hash = (Get-FileHash '%archive%' -Algorithm SHA256).Hash.ToLower(); \"$hash  $((Split-Path -Leaf '%archive%'))\"" > "%archive%.sha256"
 
