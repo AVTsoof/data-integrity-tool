@@ -1,0 +1,5 @@
+*.sha256
+*.zip
+*.7z
+*.tar.gz
+temp/
