@@ -75,6 +75,7 @@ Ensure you have these installed and in your system PATH:
 | Tool | Windows | Linux | macOS |
 | :--- | :--- | :--- | :--- |
 | **7-Zip** | [Download](https://www.7-zip.org/) | `sudo apt install p7zip-full` | `brew install p7zip` |
+| **Python** | [Download](https://www.python.org/) | `sudo apt install python3` | `brew install python` |
 | **Shell** | PowerShell (Built-in) | Bash (Standard) | Bash (Standard) |
 | **Hash** | PowerShell (Built-in) | `sha256sum` | `sha256sum` |
 
@@ -104,6 +105,49 @@ You can verify against either file:
 We include a comprehensive test suite to verify the logic across different scenarios:
 - **Windows**: `tests\run_tests.bat`
 - **Linux/macOS**: `./tests/run_tests.sh`
+
+---
+
+
+## 🐍 Python Application
+
+We now offer a robust, cross-platform Python application that includes both a CLI and a GUI.
+
+### Installation
+
+1.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+2.  **Install the Tool**:
+    ```bash
+    pip install .
+    ```
+
+### Usage
+
+#### Command Line Interface (CLI)
+
+The CLI mirrors the functionality of the shell scripts.
+
+**Create Hashes:**
+```bash
+python -m data_integrity_tool.main create my_data.zip
+```
+
+**Verify Integrity:**
+```bash
+python -m data_integrity_tool.main verify my_data.zip
+```
+
+#### Graphical User Interface (GUI)
+
+Simply run the tool without arguments to launch the GUI:
+```bash
+python -m data_integrity_tool.main
+```
+- **Create Tab**: Select an archive to generate hashes.
+- **Verify Tab**: Select an archive to verify its integrity.
 
 ---
 
