@@ -3,7 +3,7 @@ from tkinter import filedialog, messagebox, scrolledtext
 from tkinter import ttk
 import threading
 from pathlib import Path
-from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash
+from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash, find_hash_files
 
 class DataIntegrityApp:
     def __init__(self, root):
@@ -58,8 +58,25 @@ class DataIntegrityApp:
         file_frame.pack(fill='x', pady=5)
         
         self.verify_file_path = tk.StringVar()
+        self.verify_file_path.trace_add("write", self.on_verify_path_change)
         ttk.Entry(file_frame, textvariable=self.verify_file_path).pack(side='left', fill='x', expand=True)
         ttk.Button(file_frame, text="Browse", command=lambda: self.browse_file(self.verify_file_path)).pack(side='right', padx=5)
+
+        # Archive Hash File Input
+        ttk.Label(frame, text="Archive Hash File (Optional):").pack(anchor='w', pady=(10, 0))
+        archive_hash_frame = ttk.Frame(frame)
+        archive_hash_frame.pack(fill='x', pady=5)
+        self.archive_hash_path = tk.StringVar()
+        ttk.Entry(archive_hash_frame, textvariable=self.archive_hash_path).pack(side='left', fill='x', expand=True)
+        ttk.Button(archive_hash_frame, text="Browse", command=lambda: self.browse_file(self.archive_hash_path)).pack(side='right', padx=5)
+
+        # Content Hash File Input
+        ttk.Label(frame, text="Content Hash File (Optional):").pack(anchor='w', pady=(10, 0))
+        content_hash_frame = ttk.Frame(frame)
+        content_hash_frame.pack(fill='x', pady=5)
+        self.content_hash_path = tk.StringVar()
+        ttk.Entry(content_hash_frame, textvariable=self.content_hash_path).pack(side='left', fill='x', expand=True)
+        ttk.Button(content_hash_frame, text="Browse", command=lambda: self.browse_file(self.content_hash_path)).pack(side='right', padx=5)
 
         ttk.Button(frame, text="Verify Integrity", command=self.run_verify_hash).pack(pady=20)
 
@@ -67,6 +84,28 @@ class DataIntegrityApp:
         filename = filedialog.askopenfilename(filetypes=[("Archives", "*.zip *.7z *.rar *.tar *.gz"), ("All Files", "*.*")])
         if filename:
             var.set(filename)
+
+    def on_verify_path_change(self, *args):
+        path_str = self.verify_file_path.get()
+        if path_str:
+             self.check_hashes_for_file(path_str)
+        else:
+             self.archive_hash_path.set("")
+             self.content_hash_path.set("")
+
+    def check_hashes_for_file(self, filename):
+        path = Path(filename)
+        found = find_hash_files(path)
+        
+        if found['archive_hash']:
+            self.archive_hash_path.set(str(found['archive_hash']))
+        else:
+            self.archive_hash_path.set("")
+            
+        if found['content_hash']:
+            self.content_hash_path.set(str(found['content_hash']))
+        else:
+            self.content_hash_path.set("")
 
     def run_create_hash(self):
         path = self.create_file_path.get()
@@ -102,14 +141,25 @@ class DataIntegrityApp:
             return
         
         self.log(f"Starting verification for: {path}")
-        threading.Thread(target=self._verify_hash_thread, args=(Path(path),), daemon=True).start()
+        
+        archive_hash = self.archive_hash_path.get()
+        content_hash = self.content_hash_path.get()
+        
+        threading.Thread(target=self._verify_hash_thread, args=(Path(path), archive_hash, content_hash), daemon=True).start()
 
-    def _verify_hash_thread(self, archive_path):
+    def _verify_hash_thread(self, archive_path, archive_hash_path_str, content_hash_path_str):
         try:
             # Logic similar to CLI verify
             # Layer 1
-            hash_file = Path(str(archive_path) + ".sha256")
-            if hash_file.exists():
+            hash_file = Path(archive_hash_path_str) if archive_hash_path_str else None
+            
+            # If not provided, try default discovery (though UI should have handled it)
+            if not hash_file:
+                 potential = Path(str(archive_path) + ".sha256")
+                 if potential.exists():
+                     hash_file = potential
+
+            if hash_file and hash_file.exists():
                 self.root.after(0, lambda: self.log(f"Layer 1: Checking {hash_file.name}..."))
                 with open(hash_file, "r") as f:
                     expected = f.read().split()[0].strip().lower()
@@ -131,8 +181,15 @@ class DataIntegrityApp:
                 return
 
             # Layer 3
-            content_hash_file = Path(str(archive_path) + ".content.sha256")
-            if content_hash_file.exists():
+            content_hash_file = Path(content_hash_path_str) if content_hash_path_str else None
+            
+            # If not provided, try default discovery
+            if not content_hash_file:
+                potential = Path(str(archive_path) + ".content.sha256")
+                if potential.exists():
+                    content_hash_file = potential
+
+            if content_hash_file and content_hash_file.exists():
                 self.root.after(0, lambda: self.log(f"Layer 3: Checking {content_hash_file.name}..."))
                 with open(content_hash_file, "r") as f:
                     expected = f.read().strip().lower()
