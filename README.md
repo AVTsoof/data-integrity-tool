@@ -50,6 +50,24 @@ bin\verify_hash.bat my_data.zip my_data.zip.sha256 my_data.zip.content.sha256
 
 ---
 
+## 💡 The 3 Layers: Simple Explanation
+
+Think of your archive as a **sealed box** of documents.
+
+1.  **Layer 1: The Box (Archive Hash)**
+    *   **Checks:** Is the box identical to the original?
+    *   **Verdict:** If yes, 100% safe.
+
+2.  **Layer 2: The Structure (Internal Check) — *The Standard***
+    *   **Checks:** Is the box damaged or corrupted?
+    *   **Verdict:** Catches download errors. **Valid even if re-packaged.**
+
+3.  **Layer 3: The Contents (Content Hash) — *Extra Security***
+    *   **Checks:** Are the documents inside 100% authentic?
+    *   **Verdict:** **Advanced protection.** Protects against malicious tampering (e.g. fake files with matching CRC).
+
+---
+
 ## 🛠️ Prerequisites
 
 Ensure you have these installed and in your system PATH:
