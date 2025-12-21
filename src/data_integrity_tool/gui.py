@@ -40,6 +40,11 @@ class DataIntegrityApp(tk.Tk):
              foreground=[('active', 'white')]
         )
 
+        # Status Styles
+        self.style.configure("Success.TLabel", foreground="green", font=("Helvetica", 11, "bold"))
+        self.style.configure("Failure.TLabel", foreground="red", font=("Helvetica", 11, "bold"))
+        self.style.configure("Pending.TLabel", foreground="gray", font=("Helvetica", 11))
+
         self.container = ttk.Frame(self)
         self.container.pack(side="top", fill="both", expand=True)
         self.container.grid_rowconfigure(0, weight=1)
@@ -115,6 +120,16 @@ class CreatePage(ttk.Frame):
         ttk.Button(content_frame, text="Generate Hashes", style="Primary.TButton", 
                    command=self.run_create_hash).pack(pady=30)
 
+        # Results Area
+        self.results_frame = ttk.LabelFrame(content_frame, text="Results", padding=10)
+        self.results_frame.pack(fill="x", pady=(0, 20))
+        
+        self.lbl_hash_file = ttk.Label(self.results_frame, text="Hash File: -", style="Pending.TLabel")
+        self.lbl_hash_file.pack(anchor="w")
+        
+        self.lbl_content_hash = ttk.Label(self.results_frame, text="Content Hash File: -", style="Pending.TLabel")
+        self.lbl_content_hash.pack(anchor="w")
+
         # Log Area
         ttk.Label(content_frame, text="Logs:").pack(anchor='w')
         self.log_area = scrolledtext.ScrolledText(content_frame, height=10, state='disabled', font=("Consolas", 9))
@@ -136,6 +151,13 @@ class CreatePage(ttk.Frame):
         self.log_area.config(state='normal')
         self.log_area.delete(1.0, tk.END)
         self.log_area.config(state='disabled')
+        
+        # Reset results
+        self.set_status(self.lbl_hash_file, "Hash File: -", "Pending.TLabel")
+        self.set_status(self.lbl_content_hash, "Content Hash File: -", "Pending.TLabel")
+
+    def set_status(self, label, text, style):
+        label.config(text=text, style=style)
 
     def run_create_hash(self):
         path = self.create_file_path.get()
@@ -144,6 +166,11 @@ class CreatePage(ttk.Frame):
             return
         
         self.log(f"Starting hash creation for: {path}")
+        
+        # Reset statuses
+        self.set_status(self.lbl_hash_file, "Hash File: Pending...", "Pending.TLabel")
+        self.set_status(self.lbl_content_hash, "Content Hash File: Pending...", "Pending.TLabel")
+        
         threading.Thread(target=self._create_hash_thread, args=(Path(path),), daemon=True).start()
 
     def _create_hash_thread(self, archive_path):
@@ -155,14 +182,20 @@ class CreatePage(ttk.Frame):
             self.after(0, lambda: self.log("Layer 1: Generating Archive File Hash..."))
             hash_file, content_hash_file = create_hashes(archive_path)
             self.after(0, lambda: self.log(f"Created {hash_file.name}"))
+            self.after(0, lambda: self.set_status(self.lbl_hash_file, f"Hash File: {hash_file.name} \u2714", "Success.TLabel"))
             
             if content_hash_file:
                 self.after(0, lambda: self.log(f"Created {content_hash_file.name}"))
+                self.after(0, lambda: self.set_status(self.lbl_content_hash, f"Content Hash File: {content_hash_file.name} \u2714", "Success.TLabel"))
+            else:
+                self.after(0, lambda: self.set_status(self.lbl_content_hash, "Content Hash File: N/A", "Pending.TLabel"))
             
             self.after(0, lambda: messagebox.showinfo("Success", "Hashes created successfully."))
         except Exception as e:
             self.after(0, lambda: messagebox.showerror("Error", str(e)))
             self.after(0, lambda: self.log(f"Error: {e}"))
+            self.after(0, lambda: self.set_status(self.lbl_hash_file, "Hash File: Failed \u2718", "Failure.TLabel"))
+            self.after(0, lambda: self.set_status(self.lbl_content_hash, "Content Hash File: Failed \u2718", "Failure.TLabel"))
 
 class VerifyPage(ttk.Frame):
     def __init__(self, parent, controller):
@@ -213,6 +246,19 @@ class VerifyPage(ttk.Frame):
         ttk.Button(content_frame, text="Verify Integrity", style="Primary.TButton", 
                    command=self.run_verify_hash).pack(pady=30)
 
+        # Results Area
+        self.results_frame = ttk.LabelFrame(content_frame, text="Verification Results", padding=10)
+        self.results_frame.pack(fill="x", pady=(0, 20))
+        
+        self.lbl_layer1 = ttk.Label(self.results_frame, text="Layer 1 (Archive Hash): -", style="Pending.TLabel")
+        self.lbl_layer1.pack(anchor="w")
+        
+        self.lbl_layer2 = ttk.Label(self.results_frame, text="Layer 2 (Content Signature): -", style="Pending.TLabel")
+        self.lbl_layer2.pack(anchor="w")
+
+        self.lbl_layer3 = ttk.Label(self.results_frame, text="Layer 3 (Content Hash): -", style="Pending.TLabel")
+        self.lbl_layer3.pack(anchor="w")
+
         # Log Area
         ttk.Label(content_frame, text="Logs:").pack(anchor='w')
         self.log_area = scrolledtext.ScrolledText(content_frame, height=10, state='disabled', font=("Consolas", 9))
@@ -236,6 +282,14 @@ class VerifyPage(ttk.Frame):
         self.log_area.config(state='normal')
         self.log_area.delete(1.0, tk.END)
         self.log_area.config(state='disabled')
+        
+        # Reset results
+        self.set_status(self.lbl_layer1, "Layer 1 (Archive Hash): -", "Pending.TLabel")
+        self.set_status(self.lbl_layer2, "Layer 2 (Content Signature): -", "Pending.TLabel")
+        self.set_status(self.lbl_layer3, "Layer 3 (Content Hash): -", "Pending.TLabel")
+
+    def set_status(self, label, text, style):
+        label.config(text=text, style=style)
 
     def on_verify_path_change(self, *args):
         path_str = self.verify_file_path.get()
@@ -267,6 +321,11 @@ class VerifyPage(ttk.Frame):
         
         self.log(f"Starting verification for: {path}")
         
+        # Reset statuses
+        self.set_status(self.lbl_layer1, "Layer 1 (Archive Hash): Pending...", "Pending.TLabel")
+        self.set_status(self.lbl_layer2, "Layer 2 (Content Signature): Pending...", "Pending.TLabel")
+        self.set_status(self.lbl_layer3, "Layer 3 (Content Hash): Pending...", "Pending.TLabel")
+        
         archive_hash = self.archive_hash_path.get()
         content_hash = self.content_hash_path.get()
         
@@ -291,17 +350,22 @@ class VerifyPage(ttk.Frame):
                 actual = calculate_file_hash(archive_path)
                 if expected != actual:
                     self.after(0, lambda: self.log("Layer 1: MISMATCH!"))
+                    self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1 (Archive Hash): Failed \u2718", "Failure.TLabel"))
                 else:
                     self.after(0, lambda: self.log("Layer 1: PASS"))
+                    self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1 (Archive Hash): Passed \u2714", "Success.TLabel"))
             else:
                 self.after(0, lambda: self.log("Layer 1: SKIPPED (No hash file)"))
+                self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1 (Archive Hash): Skipped", "Pending.TLabel"))
 
             # Layer 2
             self.after(0, lambda: self.log("Layer 2: Checking 7z CRC..."))
             if verify_archive_integrity(archive_path):
                 self.after(0, lambda: self.log("Layer 2: PASS"))
+                self.after(0, lambda: self.set_status(self.lbl_layer2, "Layer 2 (Content Signature): Passed \u2714", "Success.TLabel"))
             else:
                 self.after(0, lambda: self.log("Layer 2: FAIL"))
+                self.after(0, lambda: self.set_status(self.lbl_layer2, "Layer 2 (Content Signature): Failed \u2718", "Failure.TLabel"))
                 self.after(0, lambda: messagebox.showerror("Failure", "Layer 2 check failed."))
                 return
 
@@ -321,10 +385,13 @@ class VerifyPage(ttk.Frame):
                 actual = get_archive_content_hash(archive_path)
                 if actual and actual.lower() == expected:
                     self.after(0, lambda: self.log("Layer 3: PASS"))
+                    self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3 (Content Hash): Passed \u2714", "Success.TLabel"))
                 else:
                     self.after(0, lambda: self.log("Layer 3: MISMATCH!"))
+                    self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3 (Content Hash): Failed \u2718", "Failure.TLabel"))
             else:
                 self.after(0, lambda: self.log("Layer 3: SKIPPED"))
+                self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3 (Content Hash): Skipped", "Pending.TLabel"))
 
             self.after(0, lambda: messagebox.showinfo("Done", "Verification complete. Check logs."))
 
