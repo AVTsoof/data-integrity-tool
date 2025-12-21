@@ -12,9 +12,10 @@ echo "content 2" > f2.txt
 
 # Test 1: Basic Hash Creation and Verification
 echo "[TEST 1] Basic Hash Creation and Verification..."
-bash ../bin/create_hash.sh f1.txt > /dev/null
-if [ ! -f f1.txt.sha256 ]; then echo "[FAIL] Hash file not created"; exit 1; fi
-bash ../bin/verify_hash.sh f1.txt f1.txt.sha256 > /dev/null
+7z a test_basic.zip f1.txt > /dev/null
+bash ../bin/create_hash.sh test_basic.zip > /dev/null
+if [ ! -f test_basic.zip.sha256 ]; then echo "[FAIL] Hash file not created"; exit 1; fi
+bash ../bin/verify_hash.sh test_basic.zip test_basic.zip.sha256 > /dev/null
 if [ $? -ne 0 ]; then echo "[FAIL] Verification failed"; exit 1; fi
 echo "[PASS] Basic test successful."
 
@@ -39,7 +40,7 @@ echo "[PASS] Content hash stable across formats (ZIP -> 7z)."
 echo "[TEST 4] Corruption Detection..."
 echo "corrupted" > f1.txt
 7z a test_corrupt.zip f1.txt f2.txt > /dev/null
-bash ../bin/verify_hash.sh test_corrupt.zip test_v1.zip.sha256 > /dev/null
+bash ../bin/verify_hash.sh test_corrupt.zip test_v1.zip.sha256 test_v1.zip.content.sha256 > /dev/null
 if [ $? -eq 0 ]; then echo "[FAIL] Failed to detect corruption"; exit 1; fi
 echo "[PASS] Corruption correctly detected."
 

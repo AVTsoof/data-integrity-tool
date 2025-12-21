@@ -13,9 +13,10 @@ echo content 2 > f2.txt
 
 :: Test 1: Basic Hash Creation and Verification
 echo [TEST 1] Basic Hash Creation and Verification...
-call ..\bin\create_hash.bat f1.txt > nul 2>&1
-if not exist f1.txt.sha256 (echo [FAIL] Hash file not created & exit /b 1)
-call ..\bin\verify_hash.bat f1.txt f1.txt.sha256 > nul 2>&1
+7z a test_basic.zip f1.txt > nul
+call ..\bin\create_hash.bat test_basic.zip > nul 2>&1
+if not exist test_basic.zip.sha256 (echo [FAIL] Hash file not created & exit /b 1)
+call ..\bin\verify_hash.bat test_basic.zip test_basic.zip.sha256 > nul 2>&1
 if %errorlevel% neq 0 (echo [FAIL] Verification failed & exit /b 1)
 echo [PASS] Basic test successful.
 
@@ -40,7 +41,7 @@ echo [PASS] Content hash stable across formats (ZIP -> 7z).
 echo [TEST 4] Corruption Detection...
 echo corrupted > f1.txt
 7z a test_corrupt.zip f1.txt f2.txt > nul
-call ..\bin\verify_hash.bat test_corrupt.zip test_v1.zip.sha256 > nul
+call ..\bin\verify_hash.bat test_corrupt.zip test_v1.zip.sha256 test_v1.zip.content.sha256 > nul
 if %errorlevel% equ 0 (echo [FAIL] Failed to detect corruption & exit /b 1)
 echo [PASS] Corruption correctly detected.
 
