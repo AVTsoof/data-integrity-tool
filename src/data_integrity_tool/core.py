@@ -124,3 +124,26 @@ def create_hashes(archive_path: Path) -> Tuple[Path, Optional[Path]]:
             f.write(f"{content_hash}\n")
             
     return hash_file, content_hash_file
+
+def find_hash_files(archive_path: Path) -> dict:
+    """
+    Finds existing hash files for the given archive.
+    Returns a dictionary with paths or None.
+    """
+    result = {
+        'archive_hash': None,
+        'content_hash': None
+    }
+    
+    # Layer 1: Archive Hash
+    # Check for .sha256 extension
+    potential_hash = Path(str(archive_path) + ".sha256")
+    if potential_hash.exists():
+        result['archive_hash'] = potential_hash
+        
+    # Layer 3: Content Hash
+    potential_content = Path(str(archive_path) + ".content.sha256")
+    if potential_content.exists():
+        result['content_hash'] = potential_content
+        
+    return result
