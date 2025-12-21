@@ -8,6 +8,16 @@ A cross-platform toolset to ensure the integrity of archives (ZIP, 7z, etc.) dur
 - **Cross-Platform**: Scripts for Windows (Batch) and Linux/macOS (Bash).
 - **Robust**: Handles renamed files and relative paths correctly.
 
+## Prerequisites
+
+To use these scripts, ensure you have the following installed:
+
+- **7-Zip (7z)**: Required for content-based hashing.
+  - **Windows**: Install 7-Zip and ensure `7z` is in your PATH.
+  - **Linux**: Install `p7zip-full` (e.g., `sudo apt install p7zip-full`).
+- **PowerShell**: Required for Windows scripts (`.bat`).
+- **sha256sum**: Required for Linux/macOS scripts (`.sh`).
+
 ## Usage
 
 ### Windows
