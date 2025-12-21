@@ -13,6 +13,10 @@ class ArchiveError(IntegrityError):
     """Raised when archive operations fail."""
     pass
 
+class DependencyError(IntegrityError):
+    """Raised when a required external dependency is missing."""
+    pass
+
 def calculate_file_hash(file_path: Path, algorithm: str = "sha256") -> str:
     """Calculates the hash of a file."""
     if not file_path.exists():
@@ -28,6 +32,16 @@ def calculate_file_hash(file_path: Path, algorithm: str = "sha256") -> str:
 def check_7z_installed() -> bool:
     """Checks if 7z is available in the PATH."""
     return shutil.which("7z") is not None
+
+def ensure_7z_installed():
+    """
+    Checks if 7z is installed. Raises DependencyError if not.
+    """
+    if not check_7z_installed():
+        raise DependencyError(
+            "7-Zip (7z) is not installed or not found in your PATH.\n"
+            "Please install it from https://www.7-zip.org/ and ensure it is added to your system PATH."
+        )
 
 def verify_archive_integrity(archive_path: Path) -> bool:
     """Verifies the internal integrity of the archive using '7z t'."""
