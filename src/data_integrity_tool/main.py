@@ -18,9 +18,9 @@ def main():
         else:
             # If GUI mode, we need to create a root window to show the error
             # because gui.main() hasn't been called yet.
-            import tkinter as tk
-            root = tk.Tk()
-            root.withdraw() # Hide the main window
+            from .gui import DataIntegrityApp
+            app = DataIntegrityApp()
+            app.withdraw() # Hide the main window
             tkinter.messagebox.showerror("Dependency Error", str(e))
             root.destroy()
             sys.exit(1)

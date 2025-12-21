@@ -5,27 +5,125 @@ import threading
 from pathlib import Path
 from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash, find_hash_files
 
-class DataIntegrityApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Data Integrity Tool")
-        self.root.geometry("600x500")
+class DataIntegrityApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Data Integrity Tool")
+        self.geometry("700x600")
+        
+        # Configure Styles
+        self.style = ttk.Style(self)
+        self.style.theme_use('clam') # Use a theme that allows more customization
+        
+        # Colors
+        self.bg_color = "#f0f2f5"
+        self.primary_color = "#007bff"
+        self.secondary_color = "#6c757d"
+        self.text_color = "#212529"
+        
+        self.configure(bg=self.bg_color)
+        
+        self.style.configure("TFrame", background=self.bg_color)
+        self.style.configure("TLabel", background=self.bg_color, foreground=self.text_color, font=("Helvetica", 11))
+        self.style.configure("Header.TLabel", font=("Helvetica", 24, "bold"), foreground=self.primary_color)
+        self.style.configure("SubHeader.TLabel", font=("Helvetica", 14), foreground=self.secondary_color)
+        
+        self.style.configure("TButton", font=("Helvetica", 11), padding=10)
+        self.style.map("TButton",
+            foreground=[('pressed', 'white'), ('active', 'white')],
+            background=[('pressed', '!disabled', self.primary_color), ('active', self.primary_color)]
+        )
+        
+        self.style.configure("Primary.TButton", background=self.primary_color, foreground="white")
+        self.style.map("Primary.TButton",
+             background=[('active', '#0056b3')], 
+             foreground=[('active', 'white')]
+        )
 
-        self.notebook = ttk.Notebook(root)
-        self.notebook.pack(expand=True, fill='both', padx=10, pady=10)
+        self.container = ttk.Frame(self)
+        self.container.pack(side="top", fill="both", expand=True)
+        self.container.grid_rowconfigure(0, weight=1)
+        self.container.grid_columnconfigure(0, weight=1)
 
-        self.create_tab = ttk.Frame(self.notebook)
-        self.verify_tab = ttk.Frame(self.notebook)
+        self.frames = {}
+        for F in (HomePage, CreatePage, VerifyPage):
+            page_name = F.__name__
+            frame = F(parent=self.container, controller=self)
+            self.frames[page_name] = frame
+            frame.grid(row=0, column=0, sticky="nsew")
 
-        self.notebook.add(self.create_tab, text='Create Hash')
-        self.notebook.add(self.verify_tab, text='Verify Hash')
+        self.show_frame("HomePage")
 
-        self.setup_create_tab()
-        self.setup_verify_tab()
+    def show_frame(self, page_name):
+        frame = self.frames[page_name]
+        if hasattr(frame, 'reset'):
+            frame.reset()
+        frame.tkraise()
 
-        # Log area at the bottom
-        self.log_area = scrolledtext.ScrolledText(root, height=10, state='disabled')
-        self.log_area.pack(fill='x', padx=10, pady=5)
+class HomePage(ttk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
+        
+        # Center content
+        center_frame = ttk.Frame(self)
+        center_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
+        label = ttk.Label(center_frame, text="Data Integrity Tool", style="Header.TLabel")
+        label.pack(pady=(0, 10))
+        
+        sub_label = ttk.Label(center_frame, text="Select an action to proceed", style="SubHeader.TLabel")
+        sub_label.pack(pady=(0, 40))
+
+        create_btn = ttk.Button(center_frame, text="Create Hash", style="Primary.TButton",
+                                command=lambda: controller.show_frame("CreatePage"))
+        create_btn.pack(fill="x", pady=10, ipadx=20)
+
+        verify_btn = ttk.Button(center_frame, text="Verify Hash", style="Primary.TButton",
+                                command=lambda: controller.show_frame("VerifyPage"))
+        verify_btn.pack(fill="x", pady=10, ipadx=20)
+
+class CreatePage(ttk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
+        
+        # Header
+        header_frame = ttk.Frame(self)
+        header_frame.pack(fill="x", padx=20, pady=20)
+        
+        home_btn = ttk.Button(header_frame, text="← Back to Home", 
+                              command=lambda: controller.show_frame("HomePage"))
+        home_btn.pack(side="left")
+        
+        title = ttk.Label(header_frame, text="Create Hash", style="Header.TLabel", font=("Helvetica", 18, "bold"))
+        title.pack(side="left", padx=20)
+
+        # Content
+        content_frame = ttk.Frame(self, padding=20)
+        content_frame.pack(fill="both", expand=True)
+        
+        ttk.Label(content_frame, text="Select Archive to Hash:").pack(anchor='w')
+        
+        file_frame = ttk.Frame(content_frame)
+        file_frame.pack(fill='x', pady=5)
+        
+        self.create_file_path = tk.StringVar()
+        ttk.Entry(file_frame, textvariable=self.create_file_path).pack(side='left', fill='x', expand=True, padx=(0, 10))
+        ttk.Button(file_frame, text="Browse", command=lambda: self.browse_file(self.create_file_path)).pack(side='right')
+
+        ttk.Button(content_frame, text="Generate Hashes", style="Primary.TButton", 
+                   command=self.run_create_hash).pack(pady=30)
+
+        # Log Area
+        ttk.Label(content_frame, text="Logs:").pack(anchor='w')
+        self.log_area = scrolledtext.ScrolledText(content_frame, height=10, state='disabled', font=("Consolas", 9))
+        self.log_area.pack(fill='both', expand=True, pady=5)
+
+    def browse_file(self, var):
+        filename = filedialog.askopenfilename(filetypes=[("Archives", "*.zip *.7z *.rar *.tar *.gz"), ("All Files", "*.*")])
+        if filename:
+            var.set(filename)
 
     def log(self, message):
         self.log_area.config(state='normal')
@@ -33,57 +131,111 @@ class DataIntegrityApp:
         self.log_area.see(tk.END)
         self.log_area.config(state='disabled')
 
-    def setup_create_tab(self):
-        frame = ttk.Frame(self.create_tab, padding="20")
-        frame.pack(fill='both', expand=True)
+    def reset(self):
+        self.create_file_path.set("")
+        self.log_area.config(state='normal')
+        self.log_area.delete(1.0, tk.END)
+        self.log_area.config(state='disabled')
 
-        ttk.Label(frame, text="Select Archive to Hash:").pack(anchor='w')
+    def run_create_hash(self):
+        path = self.create_file_path.get()
+        if not path:
+            messagebox.showerror("Error", "Please select a file.")
+            return
         
-        file_frame = ttk.Frame(frame)
-        file_frame.pack(fill='x', pady=5)
+        self.log(f"Starting hash creation for: {path}")
+        threading.Thread(target=self._create_hash_thread, args=(Path(path),), daemon=True).start()
+
+    def _create_hash_thread(self, archive_path):
+        try:
+            if not verify_archive_integrity(archive_path):
+                 self.after(0, lambda: messagebox.showerror("Error", "Not a valid archive."))
+                 return
+
+            self.after(0, lambda: self.log("Layer 1: Generating Archive File Hash..."))
+            hash_file, content_hash_file = create_hashes(archive_path)
+            self.after(0, lambda: self.log(f"Created {hash_file.name}"))
+            
+            if content_hash_file:
+                self.after(0, lambda: self.log(f"Created {content_hash_file.name}"))
+            
+            self.after(0, lambda: messagebox.showinfo("Success", "Hashes created successfully."))
+        except Exception as e:
+            self.after(0, lambda: messagebox.showerror("Error", str(e)))
+            self.after(0, lambda: self.log(f"Error: {e}"))
+
+class VerifyPage(ttk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
         
-        self.create_file_path = tk.StringVar()
-        ttk.Entry(file_frame, textvariable=self.create_file_path).pack(side='left', fill='x', expand=True)
-        ttk.Button(file_frame, text="Browse", command=lambda: self.browse_file(self.create_file_path)).pack(side='right', padx=5)
-
-        ttk.Button(frame, text="Generate Hashes", command=self.run_create_hash).pack(pady=20)
-
-    def setup_verify_tab(self):
-        frame = ttk.Frame(self.verify_tab, padding="20")
-        frame.pack(fill='both', expand=True)
-
-        ttk.Label(frame, text="Select Archive to Verify:").pack(anchor='w')
+        # Header
+        header_frame = ttk.Frame(self)
+        header_frame.pack(fill="x", padx=20, pady=20)
         
-        file_frame = ttk.Frame(frame)
+        home_btn = ttk.Button(header_frame, text="← Back to Home", 
+                              command=lambda: controller.show_frame("HomePage"))
+        home_btn.pack(side="left")
+        
+        title = ttk.Label(header_frame, text="Verify Hash", style="Header.TLabel", font=("Helvetica", 18, "bold"))
+        title.pack(side="left", padx=20)
+
+        # Content
+        content_frame = ttk.Frame(self, padding=20)
+        content_frame.pack(fill="both", expand=True)
+
+        ttk.Label(content_frame, text="Select Archive to Verify:").pack(anchor='w')
+        
+        file_frame = ttk.Frame(content_frame)
         file_frame.pack(fill='x', pady=5)
         
         self.verify_file_path = tk.StringVar()
         self.verify_file_path.trace_add("write", self.on_verify_path_change)
-        ttk.Entry(file_frame, textvariable=self.verify_file_path).pack(side='left', fill='x', expand=True)
-        ttk.Button(file_frame, text="Browse", command=lambda: self.browse_file(self.verify_file_path)).pack(side='right', padx=5)
+        ttk.Entry(file_frame, textvariable=self.verify_file_path).pack(side='left', fill='x', expand=True, padx=(0, 10))
+        ttk.Button(file_frame, text="Browse", command=lambda: self.browse_file(self.verify_file_path)).pack(side='right')
 
         # Archive Hash File Input
-        ttk.Label(frame, text="Archive Hash File (Optional):").pack(anchor='w', pady=(10, 0))
-        archive_hash_frame = ttk.Frame(frame)
+        ttk.Label(content_frame, text="Archive Hash File (Optional):").pack(anchor='w', pady=(10, 0))
+        archive_hash_frame = ttk.Frame(content_frame)
         archive_hash_frame.pack(fill='x', pady=5)
         self.archive_hash_path = tk.StringVar()
-        ttk.Entry(archive_hash_frame, textvariable=self.archive_hash_path).pack(side='left', fill='x', expand=True)
-        ttk.Button(archive_hash_frame, text="Browse", command=lambda: self.browse_file(self.archive_hash_path)).pack(side='right', padx=5)
+        ttk.Entry(archive_hash_frame, textvariable=self.archive_hash_path).pack(side='left', fill='x', expand=True, padx=(0, 10))
+        ttk.Button(archive_hash_frame, text="Browse", command=lambda: self.browse_file(self.archive_hash_path)).pack(side='right')
 
         # Content Hash File Input
-        ttk.Label(frame, text="Content Hash File (Optional):").pack(anchor='w', pady=(10, 0))
-        content_hash_frame = ttk.Frame(frame)
+        ttk.Label(content_frame, text="Content Hash File (Optional):").pack(anchor='w', pady=(10, 0))
+        content_hash_frame = ttk.Frame(content_frame)
         content_hash_frame.pack(fill='x', pady=5)
         self.content_hash_path = tk.StringVar()
-        ttk.Entry(content_hash_frame, textvariable=self.content_hash_path).pack(side='left', fill='x', expand=True)
-        ttk.Button(content_hash_frame, text="Browse", command=lambda: self.browse_file(self.content_hash_path)).pack(side='right', padx=5)
+        ttk.Entry(content_hash_frame, textvariable=self.content_hash_path).pack(side='left', fill='x', expand=True, padx=(0, 10))
+        ttk.Button(content_hash_frame, text="Browse", command=lambda: self.browse_file(self.content_hash_path)).pack(side='right')
 
-        ttk.Button(frame, text="Verify Integrity", command=self.run_verify_hash).pack(pady=20)
+        ttk.Button(content_frame, text="Verify Integrity", style="Primary.TButton", 
+                   command=self.run_verify_hash).pack(pady=30)
+
+        # Log Area
+        ttk.Label(content_frame, text="Logs:").pack(anchor='w')
+        self.log_area = scrolledtext.ScrolledText(content_frame, height=10, state='disabled', font=("Consolas", 9))
+        self.log_area.pack(fill='both', expand=True, pady=5)
 
     def browse_file(self, var):
         filename = filedialog.askopenfilename(filetypes=[("Archives", "*.zip *.7z *.rar *.tar *.gz"), ("All Files", "*.*")])
         if filename:
             var.set(filename)
+
+    def log(self, message):
+        self.log_area.config(state='normal')
+        self.log_area.insert(tk.END, message + "\n")
+        self.log_area.see(tk.END)
+        self.log_area.config(state='disabled')
+
+    def reset(self):
+        self.verify_file_path.set("")
+        self.archive_hash_path.set("")
+        self.content_hash_path.set("")
+        self.log_area.config(state='normal')
+        self.log_area.delete(1.0, tk.END)
+        self.log_area.config(state='disabled')
 
     def on_verify_path_change(self, *args):
         path_str = self.verify_file_path.get()
@@ -106,33 +258,6 @@ class DataIntegrityApp:
             self.content_hash_path.set(str(found['content_hash']))
         else:
             self.content_hash_path.set("")
-
-    def run_create_hash(self):
-        path = self.create_file_path.get()
-        if not path:
-            messagebox.showerror("Error", "Please select a file.")
-            return
-        
-        self.log(f"Starting hash creation for: {path}")
-        threading.Thread(target=self._create_hash_thread, args=(Path(path),), daemon=True).start()
-
-    def _create_hash_thread(self, archive_path):
-        try:
-            if not verify_archive_integrity(archive_path):
-                 self.root.after(0, lambda: messagebox.showerror("Error", "Not a valid archive."))
-                 return
-
-            self.root.after(0, lambda: self.log("Layer 1: Generating Archive File Hash..."))
-            hash_file, content_hash_file = create_hashes(archive_path)
-            self.root.after(0, lambda: self.log(f"Created {hash_file.name}"))
-            
-            if content_hash_file:
-                self.root.after(0, lambda: self.log(f"Created {content_hash_file.name}"))
-            
-            self.root.after(0, lambda: messagebox.showinfo("Success", "Hashes created successfully."))
-        except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Error", str(e)))
-            self.root.after(0, lambda: self.log(f"Error: {e}"))
 
     def run_verify_hash(self):
         path = self.verify_file_path.get()
@@ -160,24 +285,24 @@ class DataIntegrityApp:
                      hash_file = potential
 
             if hash_file and hash_file.exists():
-                self.root.after(0, lambda: self.log(f"Layer 1: Checking {hash_file.name}..."))
+                self.after(0, lambda: self.log(f"Layer 1: Checking {hash_file.name}..."))
                 with open(hash_file, "r") as f:
                     expected = f.read().split()[0].strip().lower()
                 actual = calculate_file_hash(archive_path)
                 if expected != actual:
-                    self.root.after(0, lambda: self.log("Layer 1: MISMATCH!"))
+                    self.after(0, lambda: self.log("Layer 1: MISMATCH!"))
                 else:
-                    self.root.after(0, lambda: self.log("Layer 1: PASS"))
+                    self.after(0, lambda: self.log("Layer 1: PASS"))
             else:
-                self.root.after(0, lambda: self.log("Layer 1: SKIPPED (No hash file)"))
+                self.after(0, lambda: self.log("Layer 1: SKIPPED (No hash file)"))
 
             # Layer 2
-            self.root.after(0, lambda: self.log("Layer 2: Checking 7z CRC..."))
+            self.after(0, lambda: self.log("Layer 2: Checking 7z CRC..."))
             if verify_archive_integrity(archive_path):
-                self.root.after(0, lambda: self.log("Layer 2: PASS"))
+                self.after(0, lambda: self.log("Layer 2: PASS"))
             else:
-                self.root.after(0, lambda: self.log("Layer 2: FAIL"))
-                self.root.after(0, lambda: messagebox.showerror("Failure", "Layer 2 check failed."))
+                self.after(0, lambda: self.log("Layer 2: FAIL"))
+                self.after(0, lambda: messagebox.showerror("Failure", "Layer 2 check failed."))
                 return
 
             # Layer 3
@@ -190,27 +315,26 @@ class DataIntegrityApp:
                     content_hash_file = potential
 
             if content_hash_file and content_hash_file.exists():
-                self.root.after(0, lambda: self.log(f"Layer 3: Checking {content_hash_file.name}..."))
+                self.after(0, lambda: self.log(f"Layer 3: Checking {content_hash_file.name}..."))
                 with open(content_hash_file, "r") as f:
                     expected = f.read().strip().lower()
                 actual = get_archive_content_hash(archive_path)
                 if actual and actual.lower() == expected:
-                    self.root.after(0, lambda: self.log("Layer 3: PASS"))
+                    self.after(0, lambda: self.log("Layer 3: PASS"))
                 else:
-                    self.root.after(0, lambda: self.log("Layer 3: MISMATCH!"))
+                    self.after(0, lambda: self.log("Layer 3: MISMATCH!"))
             else:
-                self.root.after(0, lambda: self.log("Layer 3: SKIPPED"))
+                self.after(0, lambda: self.log("Layer 3: SKIPPED"))
 
-            self.root.after(0, lambda: messagebox.showinfo("Done", "Verification complete. Check logs."))
+            self.after(0, lambda: messagebox.showinfo("Done", "Verification complete. Check logs."))
 
         except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Error", str(e)))
-            self.root.after(0, lambda: self.log(f"Error: {e}"))
+            self.after(0, lambda: messagebox.showerror("Error", str(e)))
+            self.after(0, lambda: self.log(f"Error: {e}"))
 
 def main():
-    root = tk.Tk()
-    app = DataIntegrityApp(root)
-    root.mainloop()
+    app = DataIntegrityApp()
+    app.mainloop()
 
 if __name__ == "__main__":
     main()
