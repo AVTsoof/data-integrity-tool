@@ -27,7 +27,7 @@ fi
 
 echo "[INFO] File hash mismatch. Checking internal data integrity..."
 
-ACTUAL_CONTENT_HASH=$(7z l -slt "$ARCHIVE" | grep -E "^Path = |^CRC = " | sort | sha256sum | awk '{print $1}')
+ACTUAL_CONTENT_HASH=$(7z t -scrcSHA256 "$ARCHIVE" | grep "SHA256 for data:" | cut -d':' -f2 | tr -d ' ' | cut -d'-' -f1)
 
 if [ "$EXPECTED_CONTENT_HASH" == "$ACTUAL_CONTENT_HASH" ]; then
     echo "[PASS] $ARCHIVE data is intact (Content hash matches)."

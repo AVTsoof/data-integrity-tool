@@ -24,7 +24,11 @@ if "%expected_content_hash%"=="" goto :fail_no_content
 
 echo [INFO] File hash mismatch. Checking internal data integrity...
 
-for /f "tokens=1" %%a in ('powershell -Command "$contentInfo = 7z l -slt '%archive%' | Select-String '^Path = |^CRC = ' | ForEach-Object { $_.ToString() }; if ($contentInfo) { [BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes(($contentInfo | Sort-Object | Out-String)))).Replace('-', '').ToLower() }"') do set actual_content_hash=%%a
+for /f "tokens=2 delims=:" %%a in ('7z t -scrcSHA256 "%archive%" ^| findstr /C:"SHA256 for data:"') do (
+    set "actual_content_hash=%%a"
+)
+set "actual_content_hash=%actual_content_hash: =%"
+for /f "tokens=1 delims=-" %%g in ("%actual_content_hash%") do set "actual_content_hash=%%g"
 
 if /i "%actual_content_hash%"=="%expected_content_hash%" goto :pass_content
 
