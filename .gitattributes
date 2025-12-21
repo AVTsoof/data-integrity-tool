@@ -1,0 +1,7 @@
+# Handle line endings automatically for files detected as text
+# and perform LF normalization on checkin.
+* text=auto
+
+# Explicitly declare text files you want to always be LF or CRLF.
+*.sh text eol=lf
+*.bat text eol=crlf
