@@ -1,7 +1,7 @@
 import argparse
 import sys
 from pathlib import Path
-from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash
+from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash, find_hash_files
 
 # Colors
 RED = '\033[0;31m'
@@ -50,11 +50,25 @@ def cmd_verify(args):
     content_hash_file = Path(args.content_hash_file) if args.content_hash_file else None
 
     # Auto discovery
-    if not hash_file:
-        potential_hash = Path(str(archive_path) + ".sha256")
-        if potential_hash.exists():
-            hash_file = potential_hash
-            print_color(f"[INFO] Automatically discovered archive hash file: {hash_file}", CYAN)
+    found_hashes = find_hash_files(archive_path)
+    
+    if not hash_file and found_hashes['archive_hash']:
+        hash_file = found_hashes['archive_hash']
+        print_color(f"[INFO] Automatically discovered archive hash file: {hash_file.name}", CYAN)
+    elif hash_file:
+        print_color(f"[INFO] Using provided archive hash file: {hash_file.name}", CYAN)
+    else:
+        print_color("[INFO] No archive hash file found.", YELLOW)
+
+    if not content_hash_file and found_hashes['content_hash']:
+        content_hash_file = found_hashes['content_hash']
+        print_color(f"[INFO] Automatically discovered content hash file: {content_hash_file.name}", CYAN)
+    elif content_hash_file:
+        print_color(f"[INFO] Using provided content hash file: {content_hash_file.name}", CYAN)
+    else:
+        print_color("[INFO] No content hash file found.", YELLOW)
+    
+    print("-" * 40)
 
     layer1_status = f"{YELLOW}SKIPPED (No hash file){NC}"
     layer2_status = f"{YELLOW}PENDING{NC}"
@@ -103,10 +117,6 @@ def cmd_verify(args):
     # Layer 3
     # Determine content hash file
     target_content_file = content_hash_file
-    if not target_content_file:
-        potential_content = Path(str(archive_path) + ".content.sha256")
-        if potential_content.exists():
-            target_content_file = potential_content
     
     if target_content_file:
         print_color(f"Layer 3: Checking Content Hash ({target_content_file})...", CYAN)
