@@ -12,3 +12,4 @@ venv/
 env/
 src/data_integrity_tool/_build_info.py
 version_info.txt
+.venv/

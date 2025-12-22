@@ -13,10 +13,10 @@ if %errorlevel% neq 0 (
 
 REM Create venv if it doesn't exist
 if not exist ".venv" (
-    echo Creating virtual environment (.venv)...
+    echo Creating virtual environment ^(.venv^)...
     python -m venv .venv
 ) else (
-    echo Virtual environment (.venv) already exists.
+    echo Virtual environment ^(.venv^) already exists.
 )
 
 REM Activate and install
