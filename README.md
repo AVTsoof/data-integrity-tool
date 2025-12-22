@@ -11,11 +11,7 @@ A robust, cross-platform toolset designed to verify the integrity of archive fil
 ### 1. Create Hashes
 Generate verification files for your archive.
 ```bash
-# Windows
-bin\create_hash.bat my_data.zip
-
-# Linux/macOS
-./bin/create_hash.sh my_data.zip
+python -m data_integrity_tool.main create my_data.zip
 ```
 This creates two files:
 - `my_data.zip.sha256`: The standard file hash.
@@ -24,15 +20,11 @@ This creates two files:
 ### 2. Verify Integrity
 Check if the file is valid. The tool automatically looks for `.sha256` and `.content.sha256` files in the same folder.
 ```bash
-# Windows
-bin\verify_hash.bat my_data.zip
-
-# Linux/macOS
-./bin/verify_hash.sh my_data.zip
+python -m data_integrity_tool.main verify my_data.zip
 
 # Advanced: Explicitly provide hash files
-bin\verify_hash.bat my_data.zip my_data.zip.sha256
-bin\verify_hash.bat my_data.zip my_data.zip.sha256 my_data.zip.content.sha256
+python -m data_integrity_tool.main verify my_data.zip --hash-file my_data.zip.sha256
+python -m data_integrity_tool.main verify my_data.zip --hash-file my_data.zip.sha256 --content-hash-file my_data.zip.content.sha256
 ```
 
 ---
@@ -98,7 +90,7 @@ Standard hashing tools only check the file itself. This tool adds two more layer
 You can verify against either file:
 - Providing the `.sha256` file will trigger all 3 layers (if the content hash file exists).
 - Providing the `.content.sha256` file will skip the archive hash check but still perform the CRC and Content Hash checks.
-- **Advanced**: You can explicitly provide both files: `bin\verify_hash.bat archive.zip archive.sha256 archive.content.sha256`.
+- **Advanced**: You can explicitly provide both files: `python -m data_integrity_tool.main verify archive.zip --hash-file archive.sha256 --content-hash-file archive.content.sha256`.
 
 ### Running Tests
 
@@ -255,37 +247,6 @@ We include a comprehensive test suite to verify the logic across different scena
 
 ---
 
-
-## 🐍 Python Application
-
-We now offer a robust, cross-platform Python application that includes both a CLI and a GUI.
-
-### Installation
-
-1.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-2.  **Install the Tool**:
-    ```bash
-    pip install .
-    ```
-
-### Usage
-
-#### Command Line Interface (CLI)
-
-The CLI mirrors the functionality of the shell scripts.
-
-**Create Hashes:**
-```bash
-python -m data_integrity_tool.main create my_data.zip
-```
-
-**Verify Integrity:**
-```bash
-python -m data_integrity_tool.main verify my_data.zip
-```
 
 #### Graphical User Interface (GUI)
 
