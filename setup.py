@@ -5,7 +5,7 @@ setup(
     version="0.1.0",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
-    install_requires=[],
+    install_requires=["colorama>=0.4.6"],
     entry_points={
         "console_scripts": [
             "data-integrity-tool=data_integrity_tool.main:main",

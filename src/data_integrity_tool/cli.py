@@ -1,21 +1,23 @@
 import argparse
 import sys
 from pathlib import Path
+from colorama import init, Fore, Style
 from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash, find_hash_files
 
+# Initialize colorama
+init()
+
 # Colors
-RED = '\033[0;31m'
-GREEN = '\033[0;32m'
-YELLOW = '\033[1;33m'
-BLUE = '\033[0;34m'
-CYAN = '\033[0;36m'
-NC = '\033[0m'
+RED = Fore.RED
+GREEN = Fore.GREEN
+YELLOW = Fore.YELLOW
+BLUE = Fore.BLUE
+CYAN = Fore.CYAN
+NC = Style.RESET_ALL
 
 def print_color(text: str, color: str = NC):
-    if sys.stdout.isatty():
-        print(f"{color}{text}{NC}")
-    else:
-        print(text)
+    # colorama handles stripping colors if not a tty or on Windows
+    print(f"{color}{text}{NC}")
 
 def cmd_create(args):
     archive_path = Path(args.archive)
