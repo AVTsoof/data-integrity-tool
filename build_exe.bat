@@ -1,15 +1,22 @@
 @echo off
 echo Checking for PyInstaller...
-python -m PyInstaller --version >nul 2>&1
+set "PYTHON_CMD=python"
+if exist ".venv\Scripts\python.exe" (
+    set "PYTHON_CMD=.venv\Scripts\python.exe"
+    echo Using virtual environment: .venv
+)
+
+echo Checking for PyInstaller...
+"%PYTHON_CMD%" -m PyInstaller --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo PyInstaller is not installed. Please install it using:
-    echo pip install pyinstaller
+    echo PyInstaller is not installed.
+    echo Please run setup_env.bat first to install dependencies.
+    pause
     exit /b 1
 )
 
 echo Building Data Integrity Tool...
-echo Building Data Integrity Tool...
-python build_release.py
+"%PYTHON_CMD%" build_release.py
 
 if %errorlevel% equ 0 (
     echo.
@@ -19,3 +26,4 @@ if %errorlevel% equ 0 (
     echo.
     echo Build failed.
 )
+pause
