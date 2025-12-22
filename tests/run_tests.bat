@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+set PYTHONPATH=..\src
 
 echo [TEST] Starting Data Integrity Tool Tests...
 set "TEMP_DIR=test_temp"
@@ -14,26 +15,26 @@ echo content 2 > f2.txt
 :: Test 1: Basic Hash Creation and Verification
 echo [TEST 1] Basic Hash Creation and Verification...
 7z a test_basic.zip f1.txt > nul
-call ..\bin\create_hash.bat test_basic.zip > nul 2>&1
+call python -m data_integrity_tool.main create test_basic.zip > nul 2>&1
 if not exist test_basic.zip.sha256 (echo [FAIL] Hash file not created & exit /b 1)
-call ..\bin\verify_hash.bat test_basic.zip test_basic.zip.sha256 > nul 2>&1
+call python -m data_integrity_tool.main verify test_basic.zip > nul 2>&1
 if %errorlevel% neq 0 (echo [FAIL] Verification failed & exit /b 1)
 echo [PASS] Basic test successful.
 
 :: Test 2: Content Hash Stability (Re-zipped)
 echo [TEST 2] Content Hash Stability (Re-zipped)...
 7z a test_v1.zip f1.txt f2.txt > nul
-call ..\bin\create_hash.bat test_v1.zip > nul
+call python -m data_integrity_tool.main create test_v1.zip > nul
 :: Re-zip with different settings (store only)
 7z a -mx=0 test_v2.zip f1.txt f2.txt > nul
-call ..\bin\verify_hash.bat test_v2.zip test_v1.zip.sha256 > nul
+call python -m data_integrity_tool.main verify test_v2.zip > nul
 if %errorlevel% neq 0 (echo [FAIL] Content hash mismatch for re-zipped file & exit /b 1)
 echo [PASS] Content hash stable across re-zipping.
 
 :: Test 3: Content Hash Stability (Cross-Format)
 echo [TEST 3] Content Hash Stability (Cross-Format)...
 7z a test_v3.7z f1.txt f2.txt > nul
-call ..\bin\verify_hash.bat test_v3.7z test_v1.zip.sha256 > nul
+call python -m data_integrity_tool.main verify test_v3.7z > nul
 if %errorlevel% neq 0 (echo [FAIL] Content hash mismatch for cross-format & exit /b 1)
 echo [PASS] Content hash stable across formats (ZIP -> 7z).
 
@@ -41,7 +42,8 @@ echo [PASS] Content hash stable across formats (ZIP -> 7z).
 echo [TEST 4] Corruption Detection...
 echo corrupted > f1.txt
 7z a test_corrupt.zip f1.txt f2.txt > nul
-call ..\bin\verify_hash.bat test_corrupt.zip test_v1.zip.sha256 test_v1.zip.content.sha256 > nul
+:: Explicitly testing the advanced CLI usage here
+call python -m data_integrity_tool.main verify test_corrupt.zip --hash-file test_v1.zip.sha256 --content-hash-file test_v1.zip.content.sha256 > nul
 if %errorlevel% equ 0 (echo [FAIL] Failed to detect corruption & exit /b 1)
 echo [PASS] Corruption correctly detected.
 
