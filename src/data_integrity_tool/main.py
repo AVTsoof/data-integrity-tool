@@ -22,7 +22,7 @@ def main():
             app = DataIntegrityApp()
             app.withdraw() # Hide the main window
             tkinter.messagebox.showerror("Dependency Error", str(e))
-            root.destroy()
+            app.destroy()
             sys.exit(1)
 
 if __name__ == "__main__":
