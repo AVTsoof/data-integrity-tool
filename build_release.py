@@ -1,7 +1,5 @@
 import subprocess
 import sys
-from pathlib import Path
-import textwrap
 
 def get_git_info():
     try:

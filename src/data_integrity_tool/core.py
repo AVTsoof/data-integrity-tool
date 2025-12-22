@@ -65,8 +65,7 @@ def get_archive_content_hash(archive_path: Path) -> Optional[str]:
     Gets the content hash of the archive using '7z t -scrcSHA256'.
     Parses the output for 'SHA256 for data:'.
     """
-    if not check_7z_installed():
-        raise RuntimeError("7z is not installed or not in PATH.")
+    ensure_7z_installed()
 
     try:
         # 7z t -scrcSHA256 <archive>
@@ -105,7 +104,7 @@ def create_hashes(archive_path: Path) -> Tuple[Path, Optional[Path]]:
     # Layer 1: File Hash
     file_hash = calculate_file_hash(archive_path)
     # Standard: Append .sha256 to the full filename (e.g., test.zip -> test.zip.sha256)
-    hash_file = Path(str(archive_path) + ".sha256")
+    hash_file = archive_path.with_name(archive_path.name + ".sha256")
     
     with open(hash_file, "w") as f:
         f.write(f"{file_hash}  {archive_path.name}\n")
@@ -114,7 +113,7 @@ def create_hashes(archive_path: Path) -> Tuple[Path, Optional[Path]]:
     content_hash = get_archive_content_hash(archive_path)
     content_hash_file = None
     if content_hash:
-        content_hash_file = Path(str(archive_path) + ".content.sha256")
+        content_hash_file = archive_path.with_name(archive_path.name + ".content.sha256")
         with open(content_hash_file, "w") as f:
             f.write(f"{content_hash}\n")
             
@@ -132,13 +131,94 @@ def find_hash_files(archive_path: Path) -> dict:
     
     # Layer 1: Archive Hash
     # Check for .sha256 extension
-    potential_hash = Path(str(archive_path) + ".sha256")
+    potential_hash = archive_path.with_name(archive_path.name + ".sha256")
     if potential_hash.exists():
         result['archive_hash'] = potential_hash
         
     # Layer 3: Content Hash
-    potential_content = Path(str(archive_path) + ".content.sha256")
+    potential_content = archive_path.with_name(archive_path.name + ".content.sha256")
     if potential_content.exists():
         result['content_hash'] = potential_content
         
     return result
+
+def verify_layers(archive_path: Path, hash_file: Optional[Path] = None, content_hash_file: Optional[Path] = None) -> dict:
+    """
+    Performs the 3-layer verification.
+    
+    Args:
+        archive_path: Path to the archive.
+        hash_file: Optional explicit path to the layer 1 hash file.
+        content_hash_file: Optional explicit path to the layer 3 content hash file.
+        
+    Returns:
+        A dictionary containing the status and details of each layer.
+    """
+    results = {
+        "layer1": {"status": "SKIPPED", "message": "No hash file", "details": None},
+        "layer2": {"status": "PENDING", "message": "", "details": None},
+        "layer3": {"status": "SKIPPED", "message": "No content hash file", "details": None}
+    }
+
+    # Auto-discovery if not provided
+    found_hashes = find_hash_files(archive_path)
+    if not hash_file and found_hashes['archive_hash']:
+        hash_file = found_hashes['archive_hash']
+    if not content_hash_file and found_hashes['content_hash']:
+        content_hash_file = found_hashes['content_hash']
+
+    # Layer 1: Archive Hash
+    if hash_file:
+        if not hash_file.exists():
+             results["layer1"] = {"status": "SKIPPED", "message": "File not found", "details": str(hash_file)}
+        else:
+            try:
+                with open(hash_file, "r") as f:
+                    expected = f.read().split()[0].strip().lower()
+                actual = calculate_file_hash(archive_path)
+                
+                if expected != actual:
+                    results["layer1"] = {
+                        "status": "WARNING", 
+                        "message": "Hash mismatch", 
+                        "details": {"expected": expected, "actual": actual}
+                    }
+                else:
+                    results["layer1"] = {"status": "PASSED", "message": "Match", "details": None}
+            except Exception as e:
+                results["layer1"] = {"status": "ERROR", "message": str(e), "details": None}
+
+    # Layer 2: 7z Internal Integrity
+    try:
+        if verify_archive_integrity(archive_path):
+            results["layer2"] = {"status": "PASSED", "message": "Integrity OK", "details": None}
+        else:
+            results["layer2"] = {"status": "FAILED", "message": "Integrity Check Failed", "details": None}
+    except Exception as e:
+        results["layer2"] = {"status": "FAILED", "message": f"Error: {e}", "details": None}
+
+    # Layer 3: Content Hash
+    if content_hash_file:
+        if not content_hash_file.exists():
+             results["layer3"] = {"status": "SKIPPED", "message": "File not found", "details": str(content_hash_file)}
+        else:
+            try:
+                with open(content_hash_file, "r") as f:
+                    expected_content = f.read().strip().lower()
+                
+                actual_content = get_archive_content_hash(archive_path)
+                if actual_content:
+                    actual_content = actual_content.lower()
+                
+                if expected_content != actual_content:
+                     results["layer3"] = {
+                        "status": "FAILED", 
+                        "message": "Hash mismatch", 
+                        "details": {"expected": expected_content, "actual": actual_content}
+                    }
+                else:
+                    results["layer3"] = {"status": "PASSED", "message": "Match", "details": None}
+            except Exception as e:
+                results["layer3"] = {"status": "ERROR", "message": str(e), "details": None}
+
+    return results

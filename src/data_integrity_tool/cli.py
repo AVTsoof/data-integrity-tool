@@ -2,7 +2,16 @@ import argparse
 import sys
 from pathlib import Path
 from colorama import init, Fore, Style
-from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash, find_hash_files
+from .core import (
+    create_hashes, 
+    verify_archive_integrity, 
+    get_archive_content_hash, 
+    calculate_file_hash, 
+    find_hash_files,
+    verify_layers,
+    ArchiveError,
+    DependencyError
+)
 
 # Initialize colorama
 init()
@@ -27,8 +36,11 @@ def cmd_create(args):
         if not verify_archive_integrity(archive_path):
              print_color(f"[ERROR] '{archive_path}' is not a valid archive file.", RED)
              sys.exit(1)
-    except Exception as e:
+    except (ArchiveError, DependencyError) as e:
         print_color(f"[ERROR] Failed to check archive: {e}", RED)
+        sys.exit(1)
+    except Exception as e:
+        print_color(f"[ERROR] Unexpected error checking archive: {e}", RED)
         sys.exit(1)
 
     print_color("Layer 1: Generating Archive File Hash...", CYAN)
@@ -72,85 +84,66 @@ def cmd_verify(args):
     
     print("-" * 40)
 
-    layer1_status = f"{YELLOW}SKIPPED (No hash file){NC}"
-    layer2_status = f"{YELLOW}PENDING{NC}"
-    layer3_status = f"{YELLOW}SKIPPED (No hash file){NC}"
+    # Perform verification using core logic
+    results = verify_layers(archive_path, hash_file, content_hash_file)
 
+    # Output results
+    
     # Layer 1
-    if hash_file:
-        if not hash_file.exists():
-             print_color(f"[SKIP] Layer 1: Archive hash file not found: {hash_file}", YELLOW)
-             layer1_status = f"{YELLOW}SKIPPED (File not found){NC}"
-        else:
-            print_color(f"Layer 1: Checking Archive File Hash ({hash_file})...", CYAN)
-            try:
-                with open(hash_file, "r") as f:
-                    expected_hash = f.read().split()[0].strip().lower()
-                
-                actual_hash = calculate_file_hash(archive_path)
-                
-                if expected_hash != actual_hash:
-                    print_color("[WARN] Layer 1: Archive file hash mismatch.", YELLOW)
-                    print(f"        Expected: {RED}{expected_hash}{NC}")
-                    print(f"        Actual:   {RED}{actual_hash}{NC}")
-                    layer1_status = f"{RED}WARNING (Hash mismatch){NC}"
-                else:
-                    print_color("[PASS] Layer 1: Archive file hash matches.", GREEN)
-                    layer1_status = f"{GREEN}PASSED{NC}"
-            except Exception as e:
-                print_color(f"[ERROR] Layer 1 check failed: {e}", RED)
-                layer1_status = f"{RED}ERROR{NC}"
+    l1 = results["layer1"]
+    if l1["status"] == "PASSED":
+        print_color("[PASS] Layer 1: Archive file hash matches.", GREEN)
+        layer1_status = f"{GREEN}PASSED{NC}"
+    elif l1["status"] == "WARNING":
+        print_color("[WARN] Layer 1: Archive file hash mismatch.", YELLOW)
+        if l1["details"]:
+            print(f"        Expected: {RED}{l1['details']['expected']}{NC}")
+            print(f"        Actual:   {RED}{l1['details']['actual']}{NC}")
+        layer1_status = f"{RED}WARNING (Hash mismatch){NC}"
+    elif l1["status"] == "ERROR":
+         print_color(f"[ERROR] Layer 1 check failed: {l1['message']}", RED)
+         layer1_status = f"{RED}ERROR{NC}"
+    else: # SKIPPED
+        print_color(f"[SKIP] Layer 1: {l1['message']}", YELLOW)
+        layer1_status = f"{YELLOW}SKIPPED ({l1['message']}){NC}"
 
     # Layer 2
-    print_color("Layer 2: Checking 7z Internal Integrity (CRC)...", CYAN)
-    try:
-        if verify_archive_integrity(archive_path):
-            print_color("[PASS] Layer 2: 7z internal integrity is OK.", GREEN)
-            layer2_status = f"{GREEN}PASSED{NC}"
-        else:
-            print_color("[FAIL] Layer 2: 7z integrity test failed.", RED)
-            layer2_status = f"{RED}FAILED{NC}"
-            # Fail immediately on Layer 2? Shell script does.
-            # But let's print summary first.
-    except Exception as e:
-        print_color(f"[FAIL] Layer 2: 7z integrity test failed with error: {e}", RED)
-        layer2_status = f"{RED}FAILED{NC}"
+    l2 = results["layer2"]
+    if l2["status"] == "PASSED":
+        print_color("[PASS] Layer 2: 7z internal integrity is OK.", GREEN)
+        layer2_status = f"{GREEN}PASSED{NC}"
+    elif l2["status"] == "FAILED":
+         print_color(f"[FAIL] Layer 2: {l2['message']}", RED)
+         layer2_status = f"{RED}FAILED{NC}"
+    else:
+         print_color(f"[ERROR] Layer 2: {l2['message']}", RED)
+         layer2_status = f"{RED}ERROR{NC}"
 
     # Layer 3
-    # Determine content hash file
-    target_content_file = content_hash_file
-    
-    if target_content_file:
-        print_color(f"Layer 3: Checking Content Hash ({target_content_file})...", CYAN)
-        try:
-            with open(target_content_file, "r") as f:
-                expected_content = f.read().strip().lower()
-            
-            actual_content = get_archive_content_hash(archive_path)
-            if actual_content:
-                actual_content = actual_content.lower()
-            
-            if expected_content != actual_content:
-                print_color("[FAIL] Layer 3: Content hash mismatch!", RED)
-                print(f"        Expected: {RED}{expected_content}{NC}")
-                print(f"        Actual:   {RED}{actual_content}{NC}")
-                layer3_status = f"{RED}FAILED (Hash mismatch){NC}"
-            else:
-                print_color("[PASS] Layer 3: Content hash matches.", GREEN)
-                layer3_status = f"{GREEN}PASSED{NC}"
-        except Exception as e:
-            print_color(f"[ERROR] Layer 3 check failed: {e}", RED)
-            layer3_status = f"{RED}ERROR{NC}"
-    else:
-        print_color("[SKIP] Layer 3: No content hash file found.", YELLOW)
-        layer3_status = f"{YELLOW}SKIPPED (File not found){NC}"
+    l3 = results["layer3"]
+    if l3["status"] == "PASSED":
+        print_color("[PASS] Layer 3: Content hash matches.", GREEN)
+        layer3_status = f"{GREEN}PASSED{NC}"
+    elif l3["status"] == "FAILED":
+        print_color("[FAIL] Layer 3: Content hash mismatch!", RED)
+        if l3["details"]:
+            print(f"        Expected: {RED}{l3['details']['expected']}{NC}")
+            print(f"        Actual:   {RED}{l3['details']['actual']}{NC}")
+        layer3_status = f"{RED}FAILED (Hash mismatch){NC}"
+    elif l3["status"] == "ERROR":
+        print_color(f"[ERROR] Layer 3 check failed: {l3['message']}", RED)
+        layer3_status = f"{RED}ERROR{NC}"
+    else: # SKIPPED
+        print_color(f"[SKIP] Layer 3: {l3['message']}", YELLOW)
+        layer3_status = f"{YELLOW}SKIPPED ({l3['message']}){NC}"
 
+    print("-" * 40)
     print("\n" + BLUE + f"Verification Summary for \"{archive_path.name}\":" + NC)
     print(f"  Layer 1 (Archive Hash): {layer1_status}")
     print(f"  Layer 2 (7z CRC):      {layer2_status}")
     print(f"  Layer 3 (Content Hash): {layer3_status}\n")
 
-    if "FAILED" in layer2_status or "FAILED" in layer3_status:
+    if "FAILED" in layer2_status or "FAILED" in layer3_status or "ERROR" in layer2_status:
         sys.exit(1)
     
     if "WARNING" in layer1_status:

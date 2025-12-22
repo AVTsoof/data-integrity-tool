@@ -4,7 +4,7 @@ from tkinter import ttk
 import threading
 import webbrowser
 from pathlib import Path
-from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash, find_hash_files
+from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash, find_hash_files, verify_layers, ArchiveError, DependencyError
 
 try:
     from ._build_info import VERSION, AUTHOR, URL
@@ -34,14 +34,22 @@ class ScrollableFrame(ttk.Frame):
         self.canvas.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
         
-        # Bind mousewheel
+        # Bind mousewheel (Windows/macOS)
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        # Bind mousewheel (Linux)
+        self.canvas.bind_all("<Button-4>", self._on_mousewheel)
+        self.canvas.bind_all("<Button-5>", self._on_mousewheel)
         
         # Bind canvas resize to update inner frame width
         self.canvas.bind("<Configure>", self._on_canvas_configure)
 
     def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        if event.num == 4:
+            self.canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            self.canvas.yview_scroll(1, "units")
+        else:
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
     def _on_canvas_configure(self, event):
         # Resize the inner frame to match the canvas width
@@ -426,65 +434,53 @@ class VerifyPage(ttk.Frame):
 
     def _verify_hash_thread(self, archive_path, archive_hash_path_str, content_hash_path_str):
         try:
-            # Logic similar to CLI verify
-            # Layer 1
-            hash_file = Path(archive_hash_path_str) if archive_hash_path_str else None
-            
-            # If not provided, try default discovery (though UI should have handled it)
-            if not hash_file:
-                 potential = Path(str(archive_path) + ".sha256")
-                 if potential.exists():
-                     hash_file = potential
+            # Use centralized verification logic
+            results = verify_layers(archive_path, Path(archive_hash_path_str) if archive_hash_path_str else None, Path(content_hash_path_str) if content_hash_path_str else None)
 
-            if hash_file and hash_file.exists():
-                self.after(0, lambda: self.log(f"Layer 1: Checking {hash_file.name}..."))
-                with open(hash_file, "r") as f:
-                    expected = f.read().split()[0].strip().lower()
-                actual = calculate_file_hash(archive_path)
-                
-                if expected != actual:
-                    self.after(0, lambda: self.log("Layer 1: MISMATCH!"))
-                    self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Failed \u2718", "Failure.TLabel"))
-                else:
-                    self.after(0, lambda: self.log("Layer 1: PASS"))
-                    self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Passed \u2714", "Success.TLabel"))
-            else:
-                self.after(0, lambda: self.log("Layer 1: SKIPPED (No hash file)"))
-                self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Skipped \u2013", "Skipped.TLabel"))
+            # Layer 1
+            l1 = results["layer1"]
+            if l1["status"] == "PASSED":
+                 self.after(0, lambda: self.log("Layer 1: Checking Archive File Hash... PASS"))
+                 self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Passed \u2714", "Success.TLabel"))
+            elif l1["status"] == "WARNING":
+                 self.after(0, lambda: self.log(f"Layer 1: MISMATCH! Expected: {l1.get('details', {}).get('expected')} Actual: {l1.get('details', {}).get('actual')}"))
+                 self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Failed \u2718", "Failure.TLabel"))
+            elif l1["status"] == "ERROR":
+                 self.after(0, lambda: self.log(f"Layer 1: ERROR: {l1['message']}"))
+                 self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Failed \u2718", "Failure.TLabel"))
+            else: # SKIPPED
+                 self.after(0, lambda: self.log(f"Layer 1: SKIPPED ({l1['message']})"))
+                 self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Skipped \u2013", "Skipped.TLabel"))
 
             # Layer 2
+            l2 = results["layer2"]
             self.after(0, lambda: self.log("Layer 2: Checking 7z CRC..."))
-            if verify_archive_integrity(archive_path):
+            if l2["status"] == "PASSED":
                 self.after(0, lambda: self.log("Layer 2: PASS"))
                 self.after(0, lambda: self.set_status(self.lbl_layer2, "Layer 2: The Structure (Internal Check): Passed \u2714", "Success.TLabel"))
             else:
-                self.after(0, lambda: self.log("Layer 2: FAIL"))
+                self.after(0, lambda: self.log(f"Layer 2: FAIL ({l2['message']})"))
                 self.after(0, lambda: self.set_status(self.lbl_layer2, "Layer 2: The Structure (Internal Check): Failed \u2718", "Failure.TLabel"))
-                self.after(0, lambda: messagebox.showerror("Failure", "Layer 2 check failed."))
-                return
+                # Stop if layer 2 fails? The CLI warns but let's follow previous GUI behavior which returned early or just showed failure
+                # Previous GUI logic returned early on layer 2 failure.
+                if l2["status"] == "FAILED":
+                     self.after(0, lambda: messagebox.showerror("Failure", f"Layer 2 check failed: {l2['message']}"))
+                     return
 
             # Layer 3
-            content_hash_file = Path(content_hash_path_str) if content_hash_path_str else None
-            
-            # If not provided, try default discovery
-            if not content_hash_file:
-                potential = Path(str(archive_path) + ".content.sha256")
-                if potential.exists():
-                    content_hash_file = potential
-
-            if content_hash_file and content_hash_file.exists():
-                self.after(0, lambda: self.log(f"Layer 3: Checking {content_hash_file.name}..."))
-                with open(content_hash_file, "r") as f:
-                    expected = f.read().strip().lower()
-                actual = get_archive_content_hash(archive_path)
-                if actual and actual.lower() == expected:
-                    self.after(0, lambda: self.log("Layer 3: PASS"))
-                    self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Passed \u2714", "Success.TLabel"))
-                else:
-                    self.after(0, lambda: self.log("Layer 3: MISMATCH!"))
-                    self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Failed \u2718", "Failure.TLabel"))
-            else:
-                self.after(0, lambda: self.log("Layer 3: SKIPPED"))
+            l3 = results["layer3"]
+            if l3["status"] == "PASSED":
+                self.after(0, lambda: self.log("Layer 3: Checking Content Hash... PASS"))
+                self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Passed \u2714", "Success.TLabel"))
+            elif l3["status"] == "FAILED":
+                self.after(0, lambda: self.log(f"Layer 3: MISMATCH! Expected: {l3.get('details', {}).get('expected')} Actual: {l3.get('details', {}).get('actual')}"))
+                self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Failed \u2718", "Failure.TLabel"))
+            elif l3["status"] == "ERROR":
+                self.after(0, lambda: self.log(f"Layer 3: ERROR: {l3['message']}"))
+                 # Maybe generic failure status for error?
+                self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Failed \u2718", "Failure.TLabel"))
+            else: # SKIPPED
+                self.after(0, lambda: self.log(f"Layer 3: SKIPPED ({l3['message']})"))
                 self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Skipped \u2013", "Skipped.TLabel"))
 
 
