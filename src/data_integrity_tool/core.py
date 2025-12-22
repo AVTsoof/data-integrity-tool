@@ -104,12 +104,7 @@ def create_hashes(archive_path: Path) -> Tuple[Path, Optional[Path]]:
 
     # Layer 1: File Hash
     file_hash = calculate_file_hash(archive_path)
-    hash_file = archive_path.with_suffix(archive_path.suffix + ".sha256")
-    # If the file is .zip, it becomes .zip.sha256. 
-    # Wait, the shell script does: "$ARCHIVE.sha256". So test.zip -> test.zip.sha256
-    # pathlib with_suffix replaces the suffix if one exists, or appends?
-    # with_suffix replaces. So test.zip -> test.sha256. This is WRONG based on shell script.
-    # Shell script: test.zip -> test.zip.sha256
+    # Standard: Append .sha256 to the full filename (e.g., test.zip -> test.zip.sha256)
     hash_file = Path(str(archive_path) + ".sha256")
     
     with open(hash_file, "w") as f:
