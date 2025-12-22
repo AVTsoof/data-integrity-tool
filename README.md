@@ -46,17 +46,17 @@ python -m data_integrity_tool.main verify my_data.zip --hash-file my_data.zip.sh
 
 Think of your archive as a **sealed box** of documents.
 
-1.  **Layer 1: The Box (Archive Hash)**
-    *   **Checks:** Is the box identical to the original?
-    *   **Verdict:** If yes, 100% safe.
-
-2.  **Layer 2: The Structure (Internal Check) — *The Standard***
+1.  **Layer 1: The Structure (Internal Check)**
     *   **Checks:** Is the box damaged or corrupted?
     *   **Verdict:** Catches download errors. **Valid even if re-packaged.**
 
-3.  **Layer 3: The Contents (Content Hash) — *Extra Security***
+2.  **Layer 2: The Contents (Content Authenticity)**
     *   **Checks:** Are the documents inside 100% authentic?
     *   **Verdict:** **Advanced protection.** Protects against malicious tampering (e.g. fake files with matching CRC).
+
+3.  **Layer 3: The Box (Archive File)**
+    *   **Checks:** Is the box identical to the original?
+    *   **Verdict:** If yes, 100% safe. If verified but Layer 1 & 2 pass, the data was re-archived.
 
 ---
 
@@ -78,13 +78,6 @@ Ensure you have these installed and in your system PATH:
 ### The Triple-Layer System
 
 Standard hashing tools only check the file itself. This tool adds two more layers of protection:
-
-1.  **Layer 1: Archive Hash (SHA256)**
-    - Checks the `.sha256` file. If it matches, the archive is bit-for-bit identical to the original.
-2.  **Layer 2: 7z Internal Integrity (CRC32)**
-    - Runs `7z t`. This uses the archive's internal checksums to ensure no "bit-rot" has occurred during storage.
-3.  **Layer 3: Content Hash (SHA256)**
-    - Checks the `.content.sha256` file. This is a stable hash of the *uncompressed data*. If you re-zip the same files, Layer 1 will fail, but Layer 3 will pass, confirming your data is safe.
 
 ### Flexible Verification
 You can verify against either file:

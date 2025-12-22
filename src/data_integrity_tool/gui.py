@@ -55,6 +55,31 @@ class ScrollableFrame(ttk.Frame):
         # Resize the inner frame to match the canvas width
         self.canvas.itemconfig(self.canvas_window, width=event.width)
 
+class ToolTip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tooltip = None
+        self.widget.bind("<Enter>", self.show)
+        self.widget.bind("<Leave>", self.hide)
+
+    def show(self, event=None):
+        x = self.widget.winfo_rootx() + 25
+        y = self.widget.winfo_rooty() + 25
+
+        self.tooltip = tk.Toplevel(self.widget)
+        self.tooltip.wm_overrideredirect(True)
+        self.tooltip.wm_geometry(f"+{x}+{y}")
+
+        label = tk.Label(self.tooltip, text=self.text, background="#ffffe0", relief="solid", borderwidth=1,
+                         font=("Helvetica", 9), justify='left', padx=5, pady=3)
+        label.pack()
+
+    def hide(self, event=None):
+        if self.tooltip:
+            self.tooltip.destroy()
+            self.tooltip = None
+
 class DataIntegrityApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -273,7 +298,7 @@ class CreatePage(ttk.Frame):
                  self.after(0, lambda: messagebox.showerror("Error", "Not a valid archive."))
                  return
 
-            self.after(0, lambda: self.log("Layer 1: Generating Archive File Hash..."))
+            self.after(0, lambda: self.log("Generating Archive File Hash..."))
             hash_file, content_hash_file = create_hashes(archive_path)
             self.after(0, lambda: self.log(f"Created {hash_file.name}"))
             self.after(0, lambda: self.set_status(self.lbl_hash_file, f"Hash File: {hash_file.name} \u2714", "Success.TLabel"))
@@ -351,14 +376,32 @@ class VerifyPage(ttk.Frame):
         self.results_frame = ttk.LabelFrame(content_frame, text="Verification Results", padding=10)
         self.results_frame.pack(fill="x", pady=(0, 20))
         
-        self.lbl_layer1 = ttk.Label(self.results_frame, text="Layer 1: The Box (Archive Hash): -", style="Pending.TLabel")
-        self.lbl_layer1.pack(anchor="w")
-        
-        self.lbl_layer2 = ttk.Label(self.results_frame, text="Layer 2: The Structure (Internal Check): -", style="Pending.TLabel")
-        self.lbl_layer2.pack(anchor="w")
+        # Structure - Layer 1 (Old Layer 2)
+        l1_frame = ttk.Frame(self.results_frame)
+        l1_frame.pack(fill='x', pady=2)
+        self.lbl_structure = ttk.Label(l1_frame, text="1. Data Structure: -", style="Pending.TLabel")
+        self.lbl_structure.pack(side='left')
+        tip_structure = tk.Label(l1_frame, text="(?)", fg="blue", cursor="hand2", bg=self.controller.bg_color)
+        tip_structure.pack(side='left', padx=5)
+        ToolTip(tip_structure, "Verifies the internal structure of the archive to ensure it is not corrupted.")
 
-        self.lbl_layer3 = ttk.Label(self.results_frame, text="Layer 3: The Contents (Content Hash): -", style="Pending.TLabel")
-        self.lbl_layer3.pack(anchor="w")
+        # Content - Layer 2 (Old Layer 3)
+        l2_frame = ttk.Frame(self.results_frame)
+        l2_frame.pack(fill='x', pady=2)
+        self.lbl_content = ttk.Label(l2_frame, text="2. Content Authenticity: -", style="Pending.TLabel")
+        self.lbl_content.pack(side='left')
+        tip_content = tk.Label(l2_frame, text="(?)", fg="blue", cursor="hand2", bg=self.controller.bg_color)
+        tip_content.pack(side='left', padx=5)
+        ToolTip(tip_content, "Verifies the actual content against the original source.\nA match confirms the data is authentic and has not been tampered with (e.g., malware injection).")
+
+        # Archive - Layer 3 (Old Layer 1)
+        l3_frame = ttk.Frame(self.results_frame)
+        l3_frame.pack(fill='x', pady=2)
+        self.lbl_archive = ttk.Label(l3_frame, text="3. Archive File: -", style="Pending.TLabel")
+        self.lbl_archive.pack(side='left')
+        tip_archive = tk.Label(l3_frame, text="(?)", fg="blue", cursor="hand2", bg=self.controller.bg_color)
+        tip_archive.pack(side='left', padx=5)
+        ToolTip(tip_archive, "Verifies if the archive file itself is the exact original file.\nIf this fails but Content/Structure pass, the data was likely re-archived but is still safe.")
 
         # Log Area
         ttk.Label(content_frame, text="Logs:").pack(anchor='w')
@@ -385,9 +428,9 @@ class VerifyPage(ttk.Frame):
         self.log_area.config(state='disabled')
         
         # Reset results
-        self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): -", "Pending.TLabel")
-        self.set_status(self.lbl_layer2, "Layer 2: The Structure (Internal Check): -", "Pending.TLabel")
-        self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): -", "Pending.TLabel")
+        self.set_status(self.lbl_structure, "1. Data Structure: -", "Pending.TLabel")
+        self.set_status(self.lbl_content, "2. Content Authenticity: -", "Pending.TLabel")
+        self.set_status(self.lbl_archive, "3. Archive File: -", "Pending.TLabel")
 
     def set_status(self, label, text, style):
         label.config(text=text, style=style)
@@ -423,9 +466,9 @@ class VerifyPage(ttk.Frame):
         self.log(f"Starting verification for: {path}")
         
         # Reset statuses
-        self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Pending...", "Pending.TLabel")
-        self.set_status(self.lbl_layer2, "Layer 2: The Structure (Internal Check): Pending...", "Pending.TLabel")
-        self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Pending...", "Pending.TLabel")
+        self.set_status(self.lbl_structure, "1. Data Structure: Pending...", "Pending.TLabel")
+        self.set_status(self.lbl_content, "2. Content Authenticity: Pending...", "Pending.TLabel")
+        self.set_status(self.lbl_archive, "3. Archive File: Pending...", "Pending.TLabel")
         
         archive_hash = self.archive_hash_path.get()
         content_hash = self.content_hash_path.get()
@@ -437,53 +480,61 @@ class VerifyPage(ttk.Frame):
             # Use centralized verification logic
             results = verify_layers(archive_path, Path(archive_hash_path_str) if archive_hash_path_str else None, Path(content_hash_path_str) if content_hash_path_str else None)
 
-            # Layer 1
-            l1 = results["layer1"]
-            if l1["status"] == "PASSED":
-                 self.after(0, lambda: self.log("Layer 1: Checking Archive File Hash... PASS"))
-                 self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Passed \u2714", "Success.TLabel"))
-            elif l1["status"] == "WARNING":
-                 self.after(0, lambda: self.log(f"Layer 1: MISMATCH! Expected: {l1.get('details', {}).get('expected')} Actual: {l1.get('details', {}).get('actual')}"))
-                 self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Failed \u2718", "Failure.TLabel"))
-            elif l1["status"] == "ERROR":
-                 self.after(0, lambda: self.log(f"Layer 1: ERROR: {l1['message']}"))
-                 self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Failed \u2718", "Failure.TLabel"))
-            else: # SKIPPED
-                 self.after(0, lambda: self.log(f"Layer 1: SKIPPED ({l1['message']})"))
-                 self.after(0, lambda: self.set_status(self.lbl_layer1, "Layer 1: The Box (Archive Hash): Skipped \u2013", "Skipped.TLabel"))
-
-            # Layer 2
+            # --- New Layer 1: Structure (Old Layer 2) ---
             l2 = results["layer2"]
-            self.after(0, lambda: self.log("Layer 2: Checking 7z CRC..."))
+            self.after(0, lambda: self.log("Checking Data Structure (7z integrity)..."))
+            
             if l2["status"] == "PASSED":
-                self.after(0, lambda: self.log("Layer 2: PASS"))
-                self.after(0, lambda: self.set_status(self.lbl_layer2, "Layer 2: The Structure (Internal Check): Passed \u2714", "Success.TLabel"))
+                self.after(0, lambda: self.log("Structure Check: PASS"))
+                self.after(0, lambda: self.set_status(self.lbl_structure, "1. Data Structure: PASSED: Valid Structure \u2714", "Success.TLabel"))
             else:
-                self.after(0, lambda: self.log(f"Layer 2: FAIL ({l2['message']})"))
-                self.after(0, lambda: self.set_status(self.lbl_layer2, "Layer 2: The Structure (Internal Check): Failed \u2718", "Failure.TLabel"))
-                # Stop if layer 2 fails? The CLI warns but let's follow previous GUI behavior which returned early or just showed failure
-                # Previous GUI logic returned early on layer 2 failure.
+                self.after(0, lambda: self.log(f"Structure Check: FAIL ({l2['message']})"))
+                self.after(0, lambda: self.set_status(self.lbl_structure, "1. Data Structure: FAILED: Corrupted Structure \u2718", "Failure.TLabel"))
+                
+                # Stop if structure invalid?
                 if l2["status"] == "FAILED":
-                     self.after(0, lambda: messagebox.showerror("Failure", f"Layer 2 check failed: {l2['message']}"))
+                     self.after(0, lambda: messagebox.showerror("Failure", f"Structure check failed: {l2['message']}"))
                      return
 
-            # Layer 3
+            # --- New Layer 2: Content Authenticity (Old Layer 3) ---
             l3 = results["layer3"]
+            self.after(0, lambda: self.log("Checking Content Authenticity..."))
+
+            content_passed = False
             if l3["status"] == "PASSED":
-                self.after(0, lambda: self.log("Layer 3: Checking Content Hash... PASS"))
-                self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Passed \u2714", "Success.TLabel"))
+                content_passed = True
+                self.after(0, lambda: self.log("Content Check: PASS"))
+                self.after(0, lambda: self.set_status(self.lbl_content, "2. Content Authenticity: PASSED: Matches Original Source \u2714", "Success.TLabel"))
             elif l3["status"] == "FAILED":
-                self.after(0, lambda: self.log(f"Layer 3: MISMATCH! Expected: {l3.get('details', {}).get('expected')} Actual: {l3.get('details', {}).get('actual')}"))
-                self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Failed \u2718", "Failure.TLabel"))
+                self.after(0, lambda: self.log(f"Content Check: FAIL - Expected: {l3.get('details', {}).get('expected')} Actual: {l3.get('details', {}).get('actual')}"))
+                self.after(0, lambda: self.set_status(self.lbl_content, "2. Content Authenticity: FAILED: Content Mismatch / Tampered \u2718", "Failure.TLabel"))
             elif l3["status"] == "ERROR":
-                self.after(0, lambda: self.log(f"Layer 3: ERROR: {l3['message']}"))
-                 # Maybe generic failure status for error?
-                self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Failed \u2718", "Failure.TLabel"))
+                self.after(0, lambda: self.log(f"Content Check: ERROR: {l3['message']}"))
+                self.after(0, lambda: self.set_status(self.lbl_content, f"2. Content Authenticity: FAILED: Error ({l3['message']}) \u2718", "Failure.TLabel"))
             else: # SKIPPED
-                self.after(0, lambda: self.log(f"Layer 3: SKIPPED ({l3['message']})"))
-                self.after(0, lambda: self.set_status(self.lbl_layer3, "Layer 3: The Contents (Content Hash): Skipped \u2013", "Skipped.TLabel"))
+                self.after(0, lambda: self.log(f"Content Check: SKIPPED ({l3['message']})"))
+                self.after(0, lambda: self.set_status(self.lbl_content, f"2. Content Authenticity: SKIPPED: {l3['message']} \u2013", "Skipped.TLabel"))
 
-
+            # --- New Layer 3: Archive File (Old Layer 1) ---
+            l1 = results["layer1"]
+            self.after(0, lambda: self.log("Checking Archive File Hash..."))
+            
+            if l1["status"] == "PASSED":
+                 self.after(0, lambda: self.log("Archive Check: PASS"))
+                 self.after(0, lambda: self.set_status(self.lbl_archive, "3. Archive File: PASSED: Original File (Untouched) \u2714", "Success.TLabel"))
+            elif l1["status"] == "WARNING":
+                 self.after(0, lambda: self.log(f"Archive Check: MISMATCH! Expected: {l1.get('details', {}).get('expected')} Actual: {l1.get('details', {}).get('actual')}"))
+                 # Check if we should say "Re-archived" or just failed
+                 if content_passed:
+                    self.after(0, lambda: self.set_status(self.lbl_archive, "3. Archive File: WARNING: Re-archived (Data Valid) \u26A0", "Skipped.TLabel")) # Orange for warning
+                 else:
+                    self.after(0, lambda: self.set_status(self.lbl_archive, "3. Archive File: FAILED: Modified \u2718", "Failure.TLabel"))
+            elif l1["status"] == "ERROR":
+                 self.after(0, lambda: self.log(f"Archive Check: ERROR: {l1['message']}"))
+                 self.after(0, lambda: self.set_status(self.lbl_archive, f"3. Archive File: FAILED: Error ({l1['message']}) \u2718", "Failure.TLabel"))
+            else: # SKIPPED
+                 self.after(0, lambda: self.log(f"Archive Check: SKIPPED ({l1['message']})"))
+                 self.after(0, lambda: self.set_status(self.lbl_archive, f"3. Archive File: SKIPPED: {l1['message']} \u2013", "Skipped.TLabel"))
 
         except Exception as e:
             self.after(0, lambda: messagebox.showerror("Error", str(e)))
