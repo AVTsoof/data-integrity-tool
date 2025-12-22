@@ -61,7 +61,7 @@ VSVersionInfo(
     # Set not needed items to zero 0.
     filevers={file_ver},
     prodvers={file_ver},
-    # Contains a bitmask that specifies the valid bits 'flags'r
+    # Contains a bitmask that specifies the valid bits 'flags'
     mask=0x3f,
     # Contains a bitmask that specifies the Boolean attributes of the file.
     flags=0x0,
