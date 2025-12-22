@@ -8,7 +8,8 @@ if %errorlevel% neq 0 (
 )
 
 echo Building Data Integrity Tool...
-python -m PyInstaller --noconfirm --onefile --console --name "data-integrity-tool" --clean --paths "src" run_app.py
+echo Building Data Integrity Tool...
+python build_release.py
 
 if %errorlevel% equ 0 (
     echo.

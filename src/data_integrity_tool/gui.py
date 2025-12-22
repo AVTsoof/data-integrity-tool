@@ -2,8 +2,16 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
 from tkinter import ttk
 import threading
+import webbrowser
 from pathlib import Path
 from .core import create_hashes, verify_archive_integrity, get_archive_content_hash, calculate_file_hash, find_hash_files
+
+try:
+    from ._build_info import VERSION, AUTHOR, URL
+except ImportError:
+    VERSION = "Dev"
+    AUTHOR = "Unknown"
+    URL = "Unknown"
 
 class ScrollableFrame(ttk.Frame):
     def __init__(self, container, *args, **kwargs):
@@ -42,7 +50,7 @@ class ScrollableFrame(ttk.Frame):
 class DataIntegrityApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Data Integrity Tool")
+        self.title(f"Data Integrity Tool - v{VERSION}")
         self.geometry("800x600") # Increased default size
         self.minsize(600, 500)   # Set minimum size
         
@@ -95,6 +103,38 @@ class DataIntegrityApp(tk.Tk):
 
         self.show_frame("HomePage")
 
+        # Menu
+        menubar = tk.Menu(self)
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="About", command=self.show_about)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        self.config(menu=menubar)
+
+    def show_about(self):
+        about_window = tk.Toplevel(self)
+        about_window.title("About")
+        about_window.geometry("400x250")
+        about_window.resizable(False, False)
+        about_window.configure(bg=self.bg_color)
+
+        # Center the window
+        about_window.transient(self)
+        about_window.grab_set()
+        
+        # Content
+        frame = ttk.Frame(about_window, padding=20)
+        frame.pack(fill="both", expand=True)
+        
+        ttk.Label(frame, text="Data Integrity Tool", font=("Helvetica", 16, "bold")).pack(pady=(0, 10))
+        ttk.Label(frame, text=f"Version: {VERSION}").pack(pady=2)
+        ttk.Label(frame, text=f"Author: {AUTHOR}").pack(pady=2)
+        
+        url_label = tk.Label(frame, text=URL, fg="blue", cursor="hand2", bg=self.bg_color, font=("Helvetica", 10, "underline"))
+        url_label.pack(pady=10)
+        url_label.bind("<Button-1>", lambda e: webbrowser.open_new(URL))
+        
+        ttk.Button(frame, text="Close", command=about_window.destroy).pack(pady=(20, 0))
+
     def show_frame(self, page_name):
         frame = self.frames[page_name]
         if hasattr(frame, 'reset'):
@@ -111,7 +151,10 @@ class HomePage(ttk.Frame):
         center_frame.place(relx=0.5, rely=0.5, anchor="center")
         
         label = ttk.Label(center_frame, text="Data Integrity Tool", style="Header.TLabel")
-        label.pack(pady=(0, 10))
+        label.pack(pady=(0, 5))
+        
+        version_label = ttk.Label(center_frame, text=f"v{VERSION}", style="SubHeader.TLabel", font=("Helvetica", 10))
+        version_label.pack(pady=(0, 10))
         
         sub_label = ttk.Label(center_frame, text="Select an action to proceed", style="SubHeader.TLabel")
         sub_label.pack(pady=(0, 40))
