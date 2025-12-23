@@ -56,8 +56,9 @@ def clean_workspace():
     # Remove patterns
     for pattern in wildcard_patterns:
         for file_path in root_dir.rglob(pattern):
-            logger.info(f"Removing file: {file_path.relative_to(root_dir)}")
-            file_path.unlink()
+            if file_path.is_file():
+                logger.info(f"Removing file: {file_path.relative_to(root_dir)}")
+                file_path.unlink()
 
     # Also look for any remaining __pycache__ folders recursively
     for pycache in root_dir.rglob("__pycache__"):
