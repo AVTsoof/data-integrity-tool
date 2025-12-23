@@ -132,18 +132,38 @@ Simply run the tool without arguments to launch the GUI:
 python -m data_integrity_tool.main
 ## Building from Source
 
-To create a standalone Windows executable:
+To create a standalone executable or set up the development environment:
 
 1.  **Run the setup script**:
     This creates a virtual environment and installs all dependencies.
-    ```cmd
-    setup_env.bat
-    ```
+    *   **Windows**: 
+        ```cmd
+        setup_env.bat
+        ```
+    *   **Linux/macOS**:
+        ```bash
+        ./setup_env.sh
+        ```
+    *   **Alternative (any OS)**:
+        ```bash
+        python setup_env.py
+        ```
+
 2.  **Run the build script**:
-    ```cmd
-    build_exe.bat
-    ```
-3.  The executable will be created in the `dist` folder as `data-integrity-tool.exe`.
+    *   **Windows (creates .exe)**:
+        ```cmd
+        build_exe.bat
+        ```
+    *   **Linux/macOS**:
+        ```bash
+        ./build.sh
+        ```
+    *   **Alternative (any OS)**:
+        ```bash
+        python build_release.py
+        ```
+
+3.  The executable will be created in the `dist` folder.
 
 > [!NOTE]
 > The generated executable still requires `7z` to be installed and available in your system PATH.
