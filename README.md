@@ -163,7 +163,7 @@ To create a standalone executable or set up the development environment:
         python build_release.py
         ```
 
-3.  The executable (on Windows) will be created in the `dist` folder.
+3.  The executable will be created in the `dist` folder.
 
 ### Cleanup
 
