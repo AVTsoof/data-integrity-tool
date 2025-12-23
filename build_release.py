@@ -1,30 +1,8 @@
 import subprocess
 import sys
+from metadata import AUTHOR, URL, VERSION
 
-def get_git_info():
-    try:
-        author = subprocess.check_output(["git", "config", "user.name"], text=True).strip()
-    except subprocess.CalledProcessError:
-        author = "Unknown"
-    
-    try:
-        url = subprocess.check_output(["git", "remote", "get-url", "origin"], text=True).strip()
-        # Clean up URL if it's an SSH URL
-        if url.startswith("git@"):
-            url = url.replace(":", "/").replace("git@", "https://")
-        if url.endswith(".git"):
-            url = url[:-4]
-    except subprocess.CalledProcessError:
-        url = "Unknown"
-        
-    return author, url
 
-def get_version():
-    try:
-        with open("VERSION", "r") as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return "0.0.0"
 
 def generate_build_info(version, author, url):
     content = f'''
@@ -117,18 +95,15 @@ def run_pyinstaller():
 
 def main():
     print("Gathering build metadata...")
-    author, url = get_git_info()
-    version = get_version()
-    
-    print(f"Version: {version}")
-    print(f"Author: {author}")
-    print(f"URL: {url}")
+    print(f"Version: {VERSION}")
+    print(f"Author: {AUTHOR}")
+    print(f"URL: {URL}")
     
     print("Generating src/data_integrity_tool/_build_info.py...")
-    generate_build_info(version, author, url)
+    generate_build_info(VERSION, AUTHOR, URL)
     
     print("Generating version_info.txt...")
-    generate_version_file(version, author, url)
+    generate_version_file(VERSION, AUTHOR, URL)
     
     print("Running PyInstaller...")
     try:

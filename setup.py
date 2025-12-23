@@ -1,13 +1,12 @@
 from setuptools import setup, find_packages
 import os
-
-def get_version():
-    with open(os.path.join(os.path.dirname(__file__), 'VERSION')) as f:
-        return f.read().strip()
+from metadata import AUTHOR, URL, VERSION
 
 setup(
     name="data-integrity-tool",
-    version=get_version(),
+    version=VERSION,
+    author=AUTHOR,
+    url=URL,
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     install_requires=["colorama>=0.4.6"],
