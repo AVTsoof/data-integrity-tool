@@ -1,8 +1,18 @@
 import subprocess
 import sys
-from metadata import AUTHOR, URL, VERSION
+import json
+import os
 
-
+def load_metadata():
+    """Loads project metadata from metadata.json."""
+    metadata_path = os.path.join(os.path.dirname(__file__), 'metadata.json')
+    try:
+        with open(metadata_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise RuntimeError(f"metadata.json not found at {metadata_path}")
+    except json.JSONDecodeError:
+        raise RuntimeError(f"Error decoding metadata.json at {metadata_path}")
 
 def generate_build_info(version, author, url):
     content = f'''
@@ -95,15 +105,20 @@ def run_pyinstaller():
 
 def main():
     print("Gathering build metadata...")
-    print(f"Version: {VERSION}")
-    print(f"Author: {AUTHOR}")
-    print(f"URL: {URL}")
+    metadata = load_metadata()
+    version = metadata['version']
+    author = metadata['author']
+    url = metadata['url']
+    
+    print(f"Version: {version}")
+    print(f"Author: {author}")
+    print(f"URL: {url}")
     
     print("Generating src/data_integrity_tool/_build_info.py...")
-    generate_build_info(VERSION, AUTHOR, URL)
+    generate_build_info(version, author, url)
     
     print("Generating version_info.txt...")
-    generate_version_file(VERSION, AUTHOR, URL)
+    generate_version_file(version, author, url)
     
     print("Running PyInstaller...")
     try:
