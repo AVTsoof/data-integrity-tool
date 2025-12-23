@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-echo Setting up development environment...
+echo Setting up development environment via Python...
 
 REM Check if Python is available
 python --version >nul 2>&1
@@ -11,19 +11,13 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM Create venv if it doesn't exist
-if not exist ".venv" (
-    echo Creating virtual environment ^(.venv^)...
-    python -m venv .venv
-) else (
-    echo Virtual environment ^(.venv^) already exists.
-)
+python setup_env.py
 
-REM Activate and install
-echo Installing requirements...
-call .venv\Scripts\activate.bat
-pip install -U pip
-pip install -r requirements.txt
+if %errorlevel% neq 0 (
+    echo Setup failed.
+    pause
+    exit /b 1
+)
 
 echo.
 echo Setup complete.
