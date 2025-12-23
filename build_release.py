@@ -1,30 +1,18 @@
 import subprocess
 import sys
+import json
+import os
 
-def get_git_info():
+def load_metadata():
+    """Loads project metadata from metadata.json."""
+    metadata_path = os.path.join(os.path.dirname(__file__), 'metadata.json')
     try:
-        author = subprocess.check_output(["git", "config", "user.name"], text=True).strip()
-    except subprocess.CalledProcessError:
-        author = "Unknown"
-    
-    try:
-        url = subprocess.check_output(["git", "remote", "get-url", "origin"], text=True).strip()
-        # Clean up URL if it's an SSH URL
-        if url.startswith("git@"):
-            url = url.replace(":", "/").replace("git@", "https://")
-        if url.endswith(".git"):
-            url = url[:-4]
-    except subprocess.CalledProcessError:
-        url = "Unknown"
-        
-    return author, url
-
-def get_version():
-    try:
-        with open("VERSION", "r") as f:
-            return f.read().strip()
+        with open(metadata_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
     except FileNotFoundError:
-        return "0.0.0"
+        raise RuntimeError(f"metadata.json not found at {metadata_path}")
+    except json.JSONDecodeError:
+        raise RuntimeError(f"Error decoding metadata.json at {metadata_path}")
 
 def generate_build_info(version, author, url):
     content = f'''
@@ -117,8 +105,10 @@ def run_pyinstaller():
 
 def main():
     print("Gathering build metadata...")
-    author, url = get_git_info()
-    version = get_version()
+    metadata = load_metadata()
+    version = metadata['version']
+    author = metadata['author']
+    url = metadata['url']
     
     print(f"Version: {version}")
     print(f"Author: {author}")
